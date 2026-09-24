@@ -1,0 +1,423 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0e6e64">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<title>NFC-Probenblatt</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --bg: #f4f7f6;
+    --surface: #ffffff;
+    --ink: #15201c;
+    --muted: #5a6a64;
+    --line: #dde5e2;
+    --accent: #0e6e64;
+    --accent-soft: #e0f0ed;
+    --ok: #1d7340;
+    --ok-bg: #e2f2e7;
+    --warn: #8f5500;
+    --warn-bg: #fbeed6;
+    --bad: #a1262c;
+    --bad-bg: #fae3e4;
+    --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --bg: #0e1412;
+      --surface: #151f1c;
+      --ink: #e3ebe8;
+      --muted: #94a49e;
+      --line: #25322e;
+      --accent: #52c2b4;
+      --accent-soft: #173430;
+      --ok: #72cf92;
+      --ok-bg: #15301f;
+      --warn: #efb45c;
+      --warn-bg: #33260f;
+      --bad: #f08c90;
+      --bad-bg: #3a191c;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #0e1412;
+    --surface: #151f1c;
+    --ink: #e3ebe8;
+    --muted: #94a49e;
+    --line: #25322e;
+    --accent: #52c2b4;
+    --accent-soft: #173430;
+    --ok: #72cf92;
+    --ok-bg: #15301f;
+    --warn: #efb45c;
+    --warn-bg: #33260f;
+    --bad: #f08c90;
+    --bad-bg: #3a191c;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font: 15px/1.5 var(--sans);
+    padding-inline: 16px;
+    padding-block: 24px 48px;
+  }
+  .sheet { max-width: 560px; margin: 0 auto; display: grid; gap: 20px; }
+
+  /* Kopf */
+  .head { display: grid; gap: 8px; }
+  .eyebrow {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+    font-size: 12px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--muted);
+  }
+  .example-chip {
+    letter-spacing: .02em; text-transform: none; font-weight: 500;
+    background: var(--accent-soft); color: var(--accent); border-radius: 999px; padding: 1px 10px;
+  }
+  h1 {
+    margin: 0; font: 600 clamp(32px, 9vw, 44px)/1.1 var(--mono); letter-spacing: -.01em;
+    overflow-wrap: anywhere;
+  }
+  .place { margin: 0; font-size: 17px; color: var(--ink); text-wrap: balance; }
+  .offline-chip {
+    letter-spacing: .02em; text-transform: none; font-weight: 500;
+    background: var(--warn-bg); color: var(--warn); border-radius: 999px; padding: 1px 10px;
+  }
+  .pill {
+    justify-self: start; display: inline-flex; align-items: center; gap: 8px;
+    font-size: 13px; font-weight: 600; border-radius: 999px; padding: 3px 12px 3px 10px;
+  }
+  .pill::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+  .pill.ok { color: var(--ok); background: var(--ok-bg); }
+  .pill.warn { color: var(--warn); background: var(--warn-bg); }
+  .pill.bad { color: var(--bad); background: var(--bad-bg); }
+
+  /* Kennzahlen */
+  .figures {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 1px; overflow: hidden;
+  }
+  .fig { background: var(--surface); padding: 14px 16px; display: grid; gap: 2px; align-content: start; }
+  .fig.main { grid-column: 1 / -1; border-bottom: 1px solid var(--line); }
+  .fig .k { font-size: 12px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+  .fig .v { font: 500 22px/1.2 var(--mono); font-variant-numeric: tabular-nums; }
+  .fig.main .v { font-size: 40px; font-weight: 600; color: var(--accent); }
+  .fig .v small { font-size: .5em; font-weight: 500; color: var(--muted); margin-left: 4px; }
+  .fig .note { font-size: 12px; color: var(--muted); }
+  .fig + .fig:not(.main) { border-left: 1px solid var(--line); }
+
+  /* Hinweise */
+  .alerts { display: grid; gap: 8px; }
+  .alert { border-radius: 8px; padding: 10px 14px; font-size: 14px; }
+  .alert.warn { background: var(--warn-bg); color: var(--warn); }
+  .alert.bad { background: var(--bad-bg); color: var(--bad); }
+  .alert strong { font-weight: 600; }
+
+  /* Abschnitte */
+  section h2 {
+    margin: 0 0 6px; font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted);
+  }
+  dl { margin: 0; border-top: 1px solid var(--line); }
+  .row {
+    display: grid; grid-template-columns: minmax(0, 11em) minmax(0, 1fr); gap: 12px;
+    padding: 9px 0; border-bottom: 1px solid var(--line);
+  }
+  dt { color: var(--muted); }
+  dd { margin: 0; font-family: var(--mono); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+  dd.text { font-family: var(--sans); }
+  dd.missing { color: var(--muted); }
+
+  /* Tag-Inhalt */
+  .tag { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: grid; gap: 12px; }
+  .url {
+    margin: 0; font: 13px/1.5 var(--mono); background: var(--bg); border-radius: 6px; padding: 10px 12px;
+    overflow-x: auto; white-space: pre-wrap; word-break: break-all;
+  }
+  .mem { display: grid; gap: 6px; font-size: 13px; color: var(--muted); }
+  .bar { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
+  .bar span { display: block; height: 100%; background: var(--accent); border-radius: 3px; }
+  .privacy { margin: 0; font-size: 13px; color: var(--muted); }
+
+  form { display: grid; gap: 8px; }
+  label { font-size: 13px; font-weight: 500; }
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; }
+  input[type="text"] {
+    flex: 1 1 220px; min-width: 0; font: 13px var(--mono); color: var(--ink); background: var(--bg);
+    border: 1px solid var(--line); border-radius: 6px; padding: 9px 10px;
+  }
+  button {
+    font: 500 14px var(--sans); border-radius: 6px; padding: 9px 14px; cursor: pointer;
+    border: 1px solid var(--accent); background: var(--accent); color: var(--surface);
+  }
+  button.secondary { background: transparent; color: var(--accent); }
+  input:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .error { margin: 0; font-size: 13px; color: var(--bad); }
+
+  @media (max-width: 420px) {
+    .row { grid-template-columns: 1fr; gap: 0; }
+    .fig.main .v { font-size: 34px; }
+  }
+</style>
+</head>
+<body>
+
+<main class="sheet">
+  <header class="head">
+    <div class="eyebrow">Gasprobe · Probenblatt <span class="example-chip" id="exampleChip" hidden>Beispieldaten</span> <span class="offline-chip" id="offlineChip" hidden>Offline · gespeicherte Seite</span></div>
+    <h1 id="sampleId">—</h1>
+    <p class="place" id="place"></p>
+    <span class="pill" id="status"></span>
+  </header>
+
+  <div class="alerts" id="alerts"></div>
+
+  <div class="figures">
+    <div class="fig main">
+      <span class="k">Normvolumen</span>
+      <span class="v" id="fVol">—</span>
+      <span class="note">bezogen auf 273,15 K und 1013,25 hPa</span>
+    </div>
+    <div class="fig">
+      <span class="k">Dauer</span>
+      <span class="v" id="fDur">—</span>
+    </div>
+    <div class="fig">
+      <span class="k">Ø Durchfluss</span>
+      <span class="v" id="fFlow">—</span>
+    </div>
+  </div>
+
+  <section>
+    <h2>Zeitraum</h2>
+    <dl id="secTime"></dl>
+  </section>
+
+  <section>
+    <h2>Bedingungen</h2>
+    <dl id="secCond"></dl>
+  </section>
+
+  <section>
+    <h2>Absorberflasche und Gerät</h2>
+    <dl id="secBottle"></dl>
+  </section>
+
+  <section id="secNoteWrap" hidden>
+    <h2>Bemerkung</h2>
+    <dl id="secNote"></dl>
+  </section>
+
+  <section class="tag">
+    <h2>Inhalt des NFC-Tags</h2>
+    <pre class="url" id="rawUrl"></pre>
+    <div class="mem">
+      <span id="memText"></span>
+      <div class="bar"><span id="memBar"></span></div>
+    </div>
+    <p class="privacy">Die Messwerte stehen hinter dem <code>#</code> der Adresse. Dieser Teil bleibt im Browser und wird nicht an den Server übertragen.</p>
+    <form id="tryForm">
+      <label for="tryUrl">Andere Tag-Adresse ansehen</label>
+      <div class="controls">
+        <input type="text" id="tryUrl" placeholder="https://…/p#id=…&amp;v=…" autocomplete="off" spellcheck="false">
+        <button type="submit">Anzeigen</button>
+        <button type="button" class="secondary" id="resetBtn">Beispiel</button>
+      </div>
+      <p class="error" id="tryError" hidden></p>
+    </form>
+  </section>
+</main>
+
+<script>
+(() => {
+  const EXAMPLE = "https://proben.example.org/p#id=AB-0142&ort=MS3%20Abluft%20Halle%202&s=2026-09-24T10:57&e=2026-09-24T12:57&v=120.5&q=1.00&t=21.4&p=1004&dp=-52&rg=2026-09-10&dev=GP-07&op=KW&st=ok&n=Parallelprobe%20zu%20Messung%203";
+
+  const STATUS = {
+    ok: ["ok", "Abgeschlossen"],
+    lf: ["warn", "Läuft noch"],
+    ab: ["bad", "Abgebrochen"]
+  };
+  const DEW_LIMIT = -40; // °C, darüber droht Durchbruch
+
+  const $ = id => document.getElementById(id);
+  const nf = d => new Intl.NumberFormat("de-DE", { minimumFractionDigits: d, maximumFractionDigits: d });
+  const dtf = new Intl.DateTimeFormat("de-DE", { dateStyle: "medium", timeStyle: "short" });
+  const df = new Intl.DateTimeFormat("de-DE", { dateStyle: "medium" });
+
+  const num = v => (v === undefined || v === "" || isNaN(Number(v))) ? null : Number(v);
+  const date = v => { if (!v) return null; const d = new Date(v); return isNaN(d) ? null : d; };
+
+  function parse(input) {
+    let s = String(input).trim();
+    const hash = s.indexOf("#");
+    if (hash >= 0) s = s.slice(hash + 1);
+    else if (s.includes("?")) s = s.split("?")[1];
+    const params = new URLSearchParams(s);
+    const data = {};
+    for (const [k, v] of params) data[k] = v;
+    return data;
+  }
+
+  // Größe des NDEF-URI-Records auf dem Tag abschätzen
+  function tagBytes(url) {
+    const prefixes = ["https://www.", "http://www.", "https://", "http://"];
+    let rest = url;
+    for (const p of prefixes) if (url.startsWith(p)) { rest = url.slice(p.length); break; }
+    const payload = 1 + new TextEncoder().encode(rest).length; // 1 Byte URI-Kennung
+    const record = (payload < 256 ? 4 : 7) + payload;         // Header, Typ "U", Länge
+    const tlv = record < 255 ? 2 : 4;
+    return tlv + record + 1;                                   // + Terminator
+  }
+  const CHIPS = [["NTAG213", 144], ["NTAG215", 504], ["NTAG216", 888]];
+
+  function row(label, value, opts = {}) {
+    const r = document.createElement("div");
+    r.className = "row";
+    const dt = document.createElement("dt");
+    dt.textContent = label;
+    const dd = document.createElement("dd");
+    if (value === null || value === undefined || value === "") {
+      dd.textContent = "nicht erfasst";
+      dd.className = "missing";
+    } else {
+      dd.textContent = value;
+      if (opts.text) dd.className = "text";
+    }
+    r.append(dt, dd);
+    return r;
+  }
+  function fill(id, rows) { const el = $(id); el.replaceChildren(...rows); }
+
+  function duration(a, b) {
+    if (!a || !b || b < a) return null;
+    const min = Math.round((b - a) / 60000);
+    const h = Math.floor(min / 60), m = min % 60;
+    return h ? `${h} h ${String(m).padStart(2, "0")} min` : `${m} min`;
+  }
+
+  function setFig(id, value, unit) {
+    const el = $(id);
+    el.replaceChildren();
+    if (value === null) { el.textContent = "—"; return; }
+    el.append(value);
+    if (unit) { const s = document.createElement("small"); s.textContent = unit; el.append(s); }
+  }
+
+  function render(url, isExample) {
+    const d = parse(url);
+    const start = date(d.s), end = date(d.e);
+    const vol = num(d.v), flow = num(d.q), temp = num(d.t), pres = num(d.p), dew = num(d.dp);
+    const regen = date(d.rg);
+
+    $("exampleChip").hidden = !isExample;
+    $("sampleId").textContent = d.id || "Ohne Flaschen-ID";
+    $("place").textContent = d.ort ? `Messstelle ${d.ort}` : "Messstelle nicht erfasst";
+
+    const [cls, label] = STATUS[d.st] || ["warn", "Status unbekannt"];
+    const pill = $("status");
+    pill.className = "pill " + cls;
+    pill.textContent = label;
+
+    setFig("fVol", vol === null ? null : nf(1).format(vol), "NL");
+    const dur = duration(start, end);
+    $("fDur").textContent = dur || "—";
+    setFig("fFlow", flow === null ? null : nf(2).format(flow), "NL/min");
+
+    fill("secTime", [
+      row("Start", start && dtf.format(start)),
+      row("Ende", end && dtf.format(end))
+    ]);
+    fill("secCond", [
+      row("Ø Temperatur", temp === null ? null : `${nf(1).format(temp)} °C`),
+      row("Ø Druck", pres === null ? null : `${nf(0).format(pres)} hPa`),
+      row("Max. Taupunkt Auslass", dew === null ? null : `${nf(0).format(dew)} °C`)
+    ]);
+    fill("secBottle", [
+      row("Flaschen-ID", d.id || null),
+      row("Letzte Regeneration", regen && df.format(regen)),
+      row("Probenehmer", d.dev || null),
+      row("Bediener", d.op || null, { text: true })
+    ]);
+    $("secNoteWrap").hidden = !d.n;
+    if (d.n) fill("secNote", [row("Notiz", d.n, { text: true })]);
+
+    const alerts = [];
+    if (dew !== null && dew > DEW_LIMIT) {
+      alerts.push(["warn", `Taupunkt am Auslass bis ${nf(0).format(dew)} °C (Grenze ${DEW_LIMIT} °C). Das Molsieb ist nahe am Durchbruch. Flasche vor der nächsten Probe regenerieren.`]);
+    }
+    if (d.st === "ab") alerts.push(["bad", "Die Probenahme wurde abgebrochen. Das Volumen ist nicht vollständig."]);
+    if (start && end && vol !== null && flow !== null) {
+      const expected = flow * (end - start) / 60000;
+      if (expected > 0 && Math.abs(vol - expected) / expected > 0.05) {
+        alerts.push(["warn", `Volumen und Durchfluss passen nicht zusammen: erwartet ${nf(1).format(expected)} NL, gespeichert ${nf(1).format(vol)} NL.`]);
+      }
+    }
+    $("alerts").replaceChildren(...alerts.map(([c, t]) => {
+      const a = document.createElement("div");
+      a.className = "alert " + c;
+      a.textContent = t;
+      return a;
+    }));
+
+    $("rawUrl").textContent = url;
+    const bytes = tagBytes(url);
+    const fit = CHIPS.find(([, cap]) => bytes <= cap);
+    const cap = fit ? fit[1] : CHIPS[CHIPS.length - 1][1];
+    $("memText").textContent = fit
+      ? `≈ ${bytes} Byte auf dem Tag · passt auf ${fit[0]} (${cap} Byte)`
+      : `≈ ${bytes} Byte · zu groß für NTAG216 (${cap} Byte)`;
+    $("memBar").style.width = Math.min(100, bytes / cap * 100) + "%";
+  }
+
+  function fromLocation() {
+    const h = location.hash.slice(1);
+    if (h.includes("=")) { render(location.href, false); return true; }
+    return false;
+  }
+
+  $("tryForm").addEventListener("submit", e => {
+    e.preventDefault();
+    const v = $("tryUrl").value.trim();
+    const err = $("tryError");
+    if (!v || !/(^|[#?&])id=/.test(v)) {
+      err.textContent = "Die Adresse enthält keine Probendaten. Sie muss mindestens „id=…“ hinter dem # enthalten.";
+      err.hidden = false;
+      return;
+    }
+    err.hidden = true;
+    render(v, false);
+    window.scrollTo({ top: 0, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+  });
+  $("resetBtn").addEventListener("click", () => {
+    $("tryUrl").value = "";
+    $("tryError").hidden = true;
+    render(EXAMPLE, true);
+  });
+  window.addEventListener("hashchange", fromLocation);
+
+  if (!fromLocation()) render(EXAMPLE, true);
+
+  // Offline-Betrieb: Anzeige des Netzstatus und Service Worker
+  const updateOnline = () => { $("offlineChip").hidden = navigator.onLine; };
+  window.addEventListener("online", updateOnline);
+  window.addEventListener("offline", updateOnline);
+  updateOnline();
+
+  if ("serviceWorker" in navigator && window.isSecureContext) {
+    navigator.serviceWorker.register("sw.js").catch(() => {});
+    // Browser bitten, den Offline-Speicher nicht automatisch zu löschen
+    if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+  }
+})();
+</script>
+</body>
+</html>
