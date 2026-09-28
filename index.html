@@ -181,6 +181,12 @@
 <body>
 
 <main class="sheet">
+  <div class="alert warn" id="noData" hidden>
+    <strong>Keine Probendaten in der Adresse.</strong>
+    Wurde die Seite über einen Tag geöffnet, ist dieser leer oder nur mit der Grundadresse beschrieben.
+    Darunter stehen Beispieldaten.
+  </div>
+
   <header class="head">
     <div class="eyebrow">Gasprobe · Probenblatt <span class="example-chip" id="exampleChip" hidden>Beispieldaten</span> <span class="offline-chip" id="offlineChip" hidden>Offline · gespeicherte Seite</span></div>
     <h1 id="sampleId">—</h1>
@@ -336,6 +342,7 @@
     const regen = date(d.rg);
 
     $("exampleChip").hidden = !isExample;
+    if (!isExample) $("noData").hidden = true;
     $("sampleId").textContent = d.id || "Ohne Flaschen-ID";
     $("place").textContent = d.ort ? `Messstelle ${d.ort}` : "Messstelle nicht erfasst";
 
@@ -407,6 +414,8 @@
 
   function fromLocation() {
     const h = location.hash.slice(1);
+    // Leerer Tag oder nur Grundadresse: deutlich sagen, statt still Beispieldaten zu zeigen
+    $("noData").hidden = h.includes("=");
     if (h.includes("=")) { render(location.href, false); return true; }
     return false;
   }
