@@ -270,10 +270,10 @@
   <section id="labelSec">
     <h2>Etikett</h2>
     <div class="card label">
-      <div class="dm" id="dm" role="img" aria-label="Data-Matrix-Code mit der Adresse dieser Seite"></div>
+      <div class="dm" id="dm" role="img" aria-label="Data-Matrix-Code für den Aufkleber"></div>
       <div class="label-text">
         <b>Code für den Aufkleber</b>
-        <span>Enthält nur die Adresse dieser Vorlage, keine Messwerte. Scannen öffnet die Seite, die Werte kommen dann vom NFC-Tag am Sensor.</span>
+        <span id="dmText"></span>
         <span><a class="btn" id="dmSave" download="kalibrierung-datamatrix.svg" href="#" hidden>Als SVG speichern</a></span>
       </div>
     </div>
@@ -391,6 +391,15 @@ async function datamatrix(text) {
   }
 }
 
+// Aufkleber-Code: mit Sensordaten die Messwerte (ohne Stand der Eingangsprüfung,
+// damit er nach dem Abhaken gültig bleibt), sonst nur die Adresse der Vorlage
+function label(d) {
+  datamatrix(d ? withField(d, "c", null) : new URL("kal.html", location.href).href);
+  $("dmText").textContent = d
+    ? "Enthält die Messwerte dieses Sensors. Scannen öffnet diese Seite direkt mit den Werten, auch ohne NFC."
+    : "Ohne Sensordaten enthält der Code nur die Adresse dieser Vorlage.";
+}
+
 // ---- Anzeige ----
 let current = null;     // { url, d } der angezeigten Daten, null = leere Vorlage
 let lastChart = null;
@@ -420,6 +429,7 @@ function renderEmpty() {
   $("inCheck").checked = false;
   $("emptyHint").hidden = false;
   $("tagSec").hidden = true;
+  label(null);
   updateButtons();
 }
 
@@ -429,6 +439,7 @@ function render(url) {
   current = { url, d };
   $("emptyHint").hidden = true;
   $("tagSec").hidden = false;
+  label(d);
   const ev = evaluate(d);
   const mb = Number(get(d, "mb")) || null;
   const sn = get(d, "sn") || "—";
@@ -526,7 +537,7 @@ function updateButtons() {
   $("emptyHint").textContent = "Diese Seite ist nur die Vorlage. Die Werte stehen auf dem NFC-Tag am Sensor. " + (
     mode === "nfc" ? "„Tag lesen“ antippen und den Tag an die Rückseite des Handys halten."
     : mode === "serial" ? (io.dev ? "Tag auf das Lesegerät legen und „Tag lesen“ klicken." : "Lesegerät verbinden, Tag auflegen und „Tag lesen“ klicken.")
-    : "Handy mit NFC an den Tag halten, dann öffnet sich die Seite mit den Werten des Sensors.");
+    : "Handy an den NFC-Tag halten oder den Code auf dem Aufkleber scannen, dann öffnet sich die Seite mit den Werten des Sensors.");
   $("writeBtn").disabled = busy || !io.ready || !current || wanted() === current.url;
   $("cancelBtn").hidden = !busy;
   $("device").textContent = mode === "nfc" ? "Lesegerät: NFC des Handys"
@@ -602,8 +613,6 @@ window.addEventListener("hashchange", fromLocation);
 let resizeTimer;
 window.addEventListener("resize", () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(() => lastChart && chart(...lastChart), 150); });
 fromLocation();
-// Aufkleber-Code: nur die Adresse der Vorlage, für alle Sensoren gleich
-datamatrix(new URL("kal.html", location.href).href);
 
 if (mode === "serial") {
   io.autoConnect().then(updateButtons, updateButtons);
