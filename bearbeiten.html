@@ -173,6 +173,7 @@
     </div>
     <p class="hint">Geschrieben wird nur auf den Tag mit derselben Flaschen-ID. Alle Messwerte bleiben unverändert.</p>
   </section>
+  <p class="hint">Stand <span id="version"></span></p>
 </main>
 
 <script type="module">
@@ -433,6 +434,8 @@ function deviceStatus() {
   updateMemOrButtons();
 }
 
+// Bei jeder Änderung zusammen mit VERSION in sw.js erhöhen
+$("version").textContent = "v4";
 renderChecks();
 deviceStatus();
 $("connectBtn").addEventListener("click", connect);

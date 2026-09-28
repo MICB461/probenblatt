@@ -1,6 +1,6 @@
 // Service Worker für das NFC-Probenblatt.
 // Bei jeder Änderung an index.html o. Ä. VERSION erhöhen, damit alte Caches gelöscht werden.
-const VERSION = "v3";
+const VERSION = "v4";
 const CACHE = `probenblatt-${VERSION}`;
 
 const SHELL = [
@@ -40,7 +40,8 @@ async function precacheFonts(cache) {
 self.addEventListener("install", event => {
   event.waitUntil((async () => {
     const cache = await caches.open(CACHE);
-    await cache.addAll(SHELL);
+    // cache: "reload" umgeht den HTTP-Cache (GitHub Pages: max-age=600), sonst landet die alte Fassung im neuen Cache
+    await cache.addAll(SHELL.map(u => new Request(u, { cache: "reload" })));
     await precacheFonts(cache);
     await self.skipWaiting();
   })());
@@ -81,7 +82,7 @@ self.addEventListener("fetch", event => {
 async function staleWhileRevalidate(event, req, fallback) {
   const cache = await caches.open(CACHE);
   const cached = await cache.match(req, { ignoreSearch: true });
-  const network = fetch(req).then(res => {
+  const network = fetch(req.url, { cache: "no-cache", credentials: "same-origin" }).then(res => {
     if (res.ok) cache.put(req, res.clone());
     return res;
   }).catch(() => null);
