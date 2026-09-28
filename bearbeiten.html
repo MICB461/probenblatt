@@ -192,6 +192,7 @@ let loaded = null;   // { base, pairs: [[key, rawValue]], url }
 let dev = null;      // PN532
 let tagSize = null;  // vom zuletzt gelesenen Tag, falls bekannt
 let abort = null;
+let lastSeen = "leer oder kein URL-Record"; // Beschreibung des zuletzt gelesenen Tag-Inhalts
 
 // ---- Adresse zerlegen und neu zusammensetzen, ohne unveränderte Felder anzufassen ----
 function parseUrl(url) {
@@ -205,20 +206,20 @@ function parseUrl(url) {
 }
 const dec = v => { try { return decodeURIComponent(v.replace(/\+/g, " ")); } catch (e) { return v; } };
 const field = (d, k) => { const p = d.pairs.find(([key]) => key === k); return p ? dec(p[1]) : null; };
-const idOf = url => { const d = url && parseUrl(url); return d ? field(d, "id") : null; };
 
-function buildUrl() {
+// Kästchen und Notiz auf eine Tag-Adresse anwenden (Standard: die geladene)
+function buildUrl(d = loaded) {
   let bits = 0;
   document.querySelectorAll("#checks input").forEach((cb, i) => { if (cb.checked) bits |= 1 << i; });
   const note = $("note").value.trim().replace(/\s+/g, " ");
   const set = { c: bits ? String(bits) : null, n: note ? encodeURIComponent(note) : null };
   const pairs = [];
-  for (const [k, v] of loaded.pairs) {
+  for (const [k, v] of d.pairs) {
     if (k in set) { if (set[k] !== null) pairs.push([k, set[k]]); delete set[k]; }
     else pairs.push([k, v]);
   }
   for (const k of ["c", "n"]) if (k in set && set[k] !== null) pairs.push([k, set[k]]);
-  return loaded.base + "#" + pairs.map(([k, v]) => `${k}=${v}`).join("&");
+  return d.base + "#" + pairs.map(([k, v]) => `${k}=${v}`).join("&");
 }
 
 // ---- Anzeige ----
@@ -246,7 +247,8 @@ function renderChecks() {
 function load(url) {
   const d = parseUrl(url || "");
   if (!d || !field(d, "id")) {
-    show("bad", "Der Tag enthält keine Probendaten. Nur Tags mit Flaschen-ID lassen sich bearbeiten.");
+    const seen = url ? `Inhalt: ${url.length > 70 ? url.slice(0, 70) + "…" : url}` : `Gefunden: ${lastSeen}`;
+    show("bad", `Der Tag enthält keine Probendaten. Nur Tags mit Flaschen-ID lassen sich bearbeiten. ${seen}`);
     return false;
   }
   loaded = d;
@@ -304,10 +306,17 @@ function friendly(e) {
 
 // ---- Android: Web NFC ----
 function nfcUrl(message) {
-  for (const r of message.records) {
-    if (r.recordType === "url" || r.recordType === "absolute-url") return new TextDecoder().decode(r.data);
-  }
-  return null;
+  const recs = message.records.map(r => {
+    const text = r.data ? new TextDecoder(r.encoding || "utf-8").decode(r.data) : "";
+    return { type: r.recordType, text };
+  });
+  // Auch Text-Records akzeptieren, falls die Adresse versehentlich als Text geschrieben wurde
+  const hit = recs.find(r => r.type === "url" || r.type === "absolute-url")
+    || recs.find(r => r.type === "text" && /^https?:\/\/\S+#/.test(r.text.trim()));
+  lastSeen = recs.length
+    ? recs.map(r => `${r.type}: ${r.text.length > 70 ? r.text.slice(0, 70) + "…" : r.text}`).join(" · ")
+    : "leer";
+  return hit ? hit.text.trim() : null;
 }
 
 function nfcOnce(signal, onTag) {
@@ -348,6 +357,7 @@ async function readTag() {
   const url = await withTag(nfc ? "Tag an die Rückseite des Handys halten …" : "Tag auf das Lesegerät legen …", async signal => {
     if (nfc) return nfcOnce(signal, (r, e) => nfcUrl(e.message) ?? "");
     await dev.waitForTag(signal);
+    lastSeen = "leer oder kein URL-Record";
     tagSize = await dev.tagInfo();
     return (await dev.readUrl(tagSize)) ?? "";
   });
@@ -356,26 +366,31 @@ async function readTag() {
 }
 
 async function writeTag() {
-  const url = buildUrl();
   const id = field(loaded, "id");
+  let url;
+  // Änderungen auf den aktuellen Tag-Inhalt anwenden, damit zwischenzeitlich
+  // geänderte Messwerte oder eine andere Basisadresse erhalten bleiben
+  const target = current => {
+    const d = parseUrl(current || "");
+    const found = d && field(d, "id");
+    if (found !== id) throw new Error(`Falscher Tag: ${found || "ohne Probendaten"} statt ${id}. Nichts geschrieben.`);
+    return url = buildUrl(d);
+  };
   const result = await withTag(nfc ? `Tag ${id} an die Rückseite des Handys halten …` : `Tag ${id} auf das Lesegerät legen …`, async signal => {
     if (nfc) {
       return nfcOnce(signal, async (reader, e) => {
-        const found = idOf(nfcUrl(e.message));
-        if (found !== id) throw new Error(`Falscher Tag: ${found || "ohne Probendaten"} statt ${id}. Nichts geschrieben.`);
-        await reader.write({ records: [{ recordType: "url", data: url }] }, { signal });
+        await reader.write({ records: [{ recordType: "url", data: target(nfcUrl(e.message)) }] }, { signal });
         return { verified: false };
       });
     }
     await dev.waitForTag(signal);
     const info = await dev.tagInfo();
-    const found = idOf(await dev.readUrl(info));
-    if (found !== id) throw new Error(`Falscher Tag: ${found || "ohne Probendaten"} statt ${id}. Nichts geschrieben.`);
+    const next = target(await dev.readUrl(info));
     tagSize = info;
-    return { verified: true, ...await dev.writeUrl(url, info) };
+    return { verified: true, ...await dev.writeUrl(next, info) };
   });
   if (!result) return;
-  loaded = parseUrl(url);
+  load(url);
   updateMem();
   show("ok", result.verified
     ? `Geschrieben und geprüft: ${id}, ${result.bytes} von ${result.size} Byte auf ${result.chip}.`
