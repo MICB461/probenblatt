@@ -1,0 +1,579 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0e6e64">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<title>Kalibrierschein Strömungssensor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --bg: #f4f7f6;
+    --surface: #ffffff;
+    --ink: #15201c;
+    --muted: #5a6a64;
+    --line: #dde5e2;
+    --accent: #0e6e64;
+    --accent-soft: #e0f0ed;
+    --band: rgba(14, 110, 100, .10);
+    --ok: #1d7340;
+    --ok-bg: #e2f2e7;
+    --warn: #8f5500;
+    --warn-bg: #fbeed6;
+    --bad: #a1262c;
+    --bad-bg: #fae3e4;
+    --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --bg: #0e1412;
+      --surface: #151f1c;
+      --ink: #e3ebe8;
+      --muted: #94a49e;
+      --line: #25322e;
+      --accent: #52c2b4;
+      --accent-soft: #173430;
+      --band: rgba(82, 194, 180, .13);
+      --ok: #72cf92;
+      --ok-bg: #15301f;
+      --warn: #efb45c;
+      --warn-bg: #33260f;
+      --bad: #f08c90;
+      --bad-bg: #3a191c;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #0e1412;
+    --surface: #151f1c;
+    --ink: #e3ebe8;
+    --muted: #94a49e;
+    --line: #25322e;
+    --accent: #52c2b4;
+    --accent-soft: #173430;
+    --band: rgba(82, 194, 180, .13);
+    --ok: #72cf92;
+    --ok-bg: #15301f;
+    --warn: #efb45c;
+    --warn-bg: #33260f;
+    --bad: #f08c90;
+    --bad-bg: #3a191c;
+  }
+
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font: 15px/1.5 var(--sans);
+    padding-inline: 16px;
+    padding-block: 24px 48px;
+  }
+  .sheet { max-width: 640px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr); gap: 22px; }
+
+  .head { display: grid; gap: 8px; }
+  .eyebrow {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+    font-size: 12px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--muted);
+  }
+  .chip { letter-spacing: .02em; text-transform: none; font-weight: 500; border-radius: 999px; padding: 1px 10px; }
+  .chip.example { background: var(--accent-soft); color: var(--accent); }
+  h1 { margin: 0; font: 600 clamp(32px, 9vw, 44px)/1.1 var(--mono); letter-spacing: -.01em; overflow-wrap: anywhere; }
+  h1 small { font: 500 .45em var(--sans); color: var(--muted); letter-spacing: .04em; margin-right: 6px; vertical-align: .35em; }
+  .sub { margin: 0; font-size: 17px; text-wrap: balance; }
+  .pill {
+    justify-self: start; display: inline-flex; align-items: center; gap: 8px;
+    font-size: 13px; font-weight: 600; border-radius: 999px; padding: 3px 12px 3px 10px;
+  }
+  .pill::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+  .pill.ok { color: var(--ok); background: var(--ok-bg); }
+  .pill.bad { color: var(--bad); background: var(--bad-bg); }
+
+  .figures {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+    display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); overflow: hidden;
+  }
+  .fig { padding: 14px 16px; display: grid; gap: 2px; align-content: start; }
+  .fig + .fig { border-left: 1px solid var(--line); }
+  .fig .k { font-size: 12px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+  .fig .v { font: 500 24px/1.2 var(--mono); font-variant-numeric: tabular-nums; }
+  .fig .v small { font-size: .55em; color: var(--muted); margin-left: 3px; }
+  .fig .note { font-size: 12px; color: var(--muted); }
+  .fig.main .v { color: var(--accent); font-weight: 600; }
+
+  section > h2 {
+    margin: 0 0 8px; font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted);
+  }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: grid; gap: 12px; }
+
+  /* Diagramm */
+  .chart svg { display: block; width: 100%; height: auto; }
+  .chart .axis { stroke: var(--line); stroke-width: 1; }
+  .chart .zero { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; }
+  .chart .band { fill: var(--band); stroke: var(--accent); stroke-width: 1; stroke-opacity: .5; }
+  .chart .pt { fill: var(--accent); stroke: var(--surface); stroke-width: 2; }
+  .chart .pt.out { fill: var(--bad); }
+  .chart .lbl { fill: var(--muted); font: 11px var(--mono); }
+  .chart .ttl { fill: var(--muted); font: 500 11px var(--sans); }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; color: var(--muted); }
+  .legend span::before { content: ""; display: inline-block; width: 10px; height: 10px; margin-right: 6px; vertical-align: -1px; }
+  .legend .l-band::before { background: var(--band); border: 1px solid var(--accent); }
+  .legend .l-pt::before { background: var(--accent); border-radius: 50%; }
+
+  /* Messwerttabelle */
+  .scroll { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  th, td { padding: 8px 10px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--line); }
+  th { font-size: 12px; font-weight: 500; color: var(--muted); vertical-align: bottom; line-height: 1.3; }
+  th small { display: block; font-weight: 400; }
+  td { font: 14px var(--mono); }
+  td.st { font-family: var(--sans); font-weight: 600; text-align: left; }
+  td.st.ok { color: var(--ok); }
+  td.st.bad { color: var(--bad); }
+  th:first-child, td:first-child { padding-left: 0; }
+  th:last-child, td:last-child { padding-right: 0; }
+
+  dl { margin: 0; border-top: 1px solid var(--line); }
+  .row { display: grid; grid-template-columns: minmax(0, 13em) minmax(0, 1fr); gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--line); }
+  dt { color: var(--muted); }
+  dd { margin: 0; font-family: var(--mono); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+
+  /* Eingangsprüfung */
+  .check { display: flex; align-items: center; gap: 12px; font-size: 16px; font-weight: 500; cursor: pointer; }
+  .check input { width: 22px; height: 22px; margin: 0; accent-color: var(--accent); flex: none; }
+  .check:has(input:disabled) { cursor: default; }
+  .device { margin: 0; font-size: 13px; color: var(--muted); }
+  .actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  button, a.btn {
+    font: 500 15px var(--sans); border-radius: 6px; padding: 10px 16px; cursor: pointer; min-height: 44px;
+    border: 1px solid var(--accent); background: var(--accent); color: var(--surface);
+    text-decoration: none; display: inline-flex; align-items: center;
+  }
+  button.secondary, a.btn { background: transparent; color: var(--accent); }
+  button:disabled { opacity: .45; cursor: default; }
+  button:focus-visible, a.btn:focus-visible, .check input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .msg { margin: 0; border-radius: 8px; padding: 10px 14px; font-size: 14px; }
+  .msg.info { background: var(--accent-soft); color: var(--accent); }
+  .msg.ok { background: var(--ok-bg); color: var(--ok); }
+  .msg.bad { background: var(--bad-bg); color: var(--bad); }
+
+  /* Etikett */
+  .label { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 16px; align-items: center; }
+  .dm { background: #fff; padding: 10px; border-radius: 6px; width: 148px; border: 1px solid var(--line); }
+  .dm svg { display: block; width: 100%; height: auto; }
+  .label-text { display: grid; gap: 4px; font-size: 13px; color: var(--muted); }
+  .label-text b { font: 600 16px var(--mono); color: var(--ink); }
+
+  .url { margin: 0; font: 12px/1.5 var(--mono); background: var(--bg); border-radius: 6px; padding: 10px 12px; white-space: pre-wrap; word-break: break-all; }
+  .mem { display: grid; gap: 6px; font-size: 13px; color: var(--muted); }
+  .bar { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
+  .bar span { display: block; height: 100%; background: var(--accent); border-radius: 3px; }
+  .foot { margin: 0; font-size: 12px; color: var(--muted); }
+
+  @media (max-width: 480px) {
+    th, td { padding-inline: 6px; }
+    td.st .long { display: none; }
+    th.st-h { font-size: 0; }
+    .figures { grid-template-columns: 1fr 1fr; }
+    .fig.main { grid-column: 1 / -1; border-bottom: 1px solid var(--line); }
+    .fig.main + .fig { border-left: 0; }
+    .row { grid-template-columns: 1fr; gap: 0; }
+    .label { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<main class="sheet">
+  <header class="head">
+    <div class="eyebrow">Kalibrierschein · Vorführung <span class="chip example" id="exampleChip" hidden>Beispieldaten</span></div>
+    <h1><small>SN</small><span id="sn">—</span></h1>
+    <p class="sub" id="sub"></p>
+    <span class="pill" id="verdict"></span>
+  </header>
+
+  <div class="figures">
+    <div class="fig main">
+      <span class="k">Toleranz ausgenutzt</span>
+      <span class="v" id="fUse">—</span>
+      <span class="note" id="fUseNote"></span>
+    </div>
+    <div class="fig">
+      <span class="k">Messpunkte</span>
+      <span class="v" id="fPts">—</span>
+      <span class="note" id="fRange"></span>
+    </div>
+    <div class="fig">
+      <span class="k">Kalibriert</span>
+      <span class="v" id="fAge">—</span>
+      <span class="note" id="fDate"></span>
+    </div>
+  </div>
+
+  <section>
+    <h2>Abweichung in m/s über dem Messbereich</h2>
+    <div class="card chart">
+      <div id="chart"></div>
+      <div class="legend"><span class="l-band" id="legBand">Zulässig</span><span class="l-pt">Messpunkt</span></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Messergebnisse</h2>
+    <div class="scroll">
+      <table>
+        <thead><tr>
+          <th>Referenz<small>m/s</small></th>
+          <th>Ausgang<small>mA</small></th>
+          <th>Anzeige<small>m/s</small></th>
+          <th>Abweichung<small>m/s</small></th>
+          <th>Grenze<small>± m/s</small></th>
+          <th class="st-h" style="text-align:left">Ergebnis</th>
+        </tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Randbedingungen</h2>
+    <dl id="cond"></dl>
+  </section>
+
+  <section>
+    <h2>Beim Empfänger</h2>
+    <div class="card">
+      <label class="check"><input type="checkbox" id="inCheck" disabled> Eingangsprüfung durchgeführt</label>
+      <p class="device" id="device"></p>
+      <div class="actions">
+        <button type="button" class="secondary" id="connectBtn" hidden>Lesegerät verbinden</button>
+        <button type="button" class="secondary" id="readBtn" hidden>Tag lesen</button>
+        <button type="button" id="writeBtn" hidden disabled>Auf Tag schreiben</button>
+        <button type="button" class="secondary" id="cancelBtn" hidden>Abbrechen</button>
+      </div>
+      <p class="msg" id="msg" hidden></p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Etikett</h2>
+    <div class="card label">
+      <div class="dm" id="dm" role="img" aria-label="Data-Matrix-Code mit den Kalibrierdaten"></div>
+      <div class="label-text">
+        <b id="dmSn">—</b>
+        <span>Data-Matrix-Code mit denselben Kalibrierdaten wie der NFC-Tag, ohne den Stand der Eingangsprüfung. Mit der Kamera-App scannen öffnet diese Seite.</span>
+        <span><a class="btn" id="dmSave" download="kalibrierung-datamatrix.svg" href="#" hidden>Als SVG speichern</a></span>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2 style="margin:0">Inhalt des NFC-Tags</h2>
+    <pre class="url" id="rawUrl"></pre>
+    <div class="mem"><span id="memText"></span><div class="bar"><span id="memBar"></span></div></div>
+    <p class="foot">Alle Werte stehen hinter dem <code>#</code> der Adresse und werden nicht an den Server übertragen. Vorführung mit echten Messwerten, ohne Hersteller- und Kundenangaben.</p>
+  </section>
+</main>
+
+<script type="module">
+import { TagIO, mode, friendly } from "./tagio.js";
+import { ndefSize } from "./ndef.js";
+
+// (Beispieldaten entfernt)
+// (Beispieldaten entfernt)
+const CHIPS = [["NTAG213", 144], ["NTAG215", 496], ["NTAG216", 872]];
+
+const $ = id => document.getElementById(id);
+const nf = (d, v) => new Intl.NumberFormat("de-DE", { minimumFractionDigits: d, maximumFractionDigits: d }).format(v);
+const sgn = (d, v) => (v > 0 ? "+" : v < 0 ? "−" : "±") + nf(d, Math.abs(v));
+
+// ---- Adresse ----
+function parseUrl(url) {
+  const h = url.indexOf("#");
+  if (h < 0) return null;
+  const pairs = url.slice(h + 1).split("&").filter(Boolean).map(p => {
+    const i = p.indexOf("=");
+    return i < 0 ? [p, ""] : [p.slice(0, i), p.slice(i + 1)];
+  });
+  return { base: url.slice(0, h), pairs };
+}
+const dec = v => { try { return decodeURIComponent(v.replace(/\+/g, " ")); } catch (e) { return v; } };
+const get = (d, k) => { const p = d.pairs.find(([key]) => key === k); return p ? dec(p[1]) : null; };
+const nums = s => (s || "").split(",").map(Number);
+function withField(d, key, value) {
+  const pairs = d.pairs.filter(([k]) => k !== key);
+  if (value !== null) pairs.push([key, value]);
+  return d.base + "#" + pairs.map(([k, v]) => `${k}=${v}`).join("&");
+}
+
+// ---- Auswertung ----
+function evaluate(d) {
+  const [pct, abs] = nums(get(d, "tol"));
+  const pts = (get(d, "m") || "").split(";").filter(Boolean).map(s => {
+    const [ref, ma, disp] = nums(s);
+    const dev = Math.round((disp - ref) * 1000) / 1000;
+    const lim = pct / 100 * ref + abs;
+    return { ref, ma, disp, dev, lim, use: Math.abs(dev) / lim, ok: Math.abs(dev) <= lim };
+  });
+  return { pct, abs, pts };
+}
+
+// ---- Diagramm: Abweichung mit Toleranzband ----
+function chart(ev, mb) {
+  // Zeichenbreite = tatsächliche Breite, damit die Beschriftung am Handy lesbar bleibt
+  const W = Math.round(Math.max(300, Math.min(640, $("chart").clientWidth || 600)));
+  const H = W < 480 ? 220 : 240, L = 52, R = 14, T = 14, B = 40;
+  const xmax = mb || Math.max(...ev.pts.map(p => p.ref)) * 1.1;
+  const lim = x => ev.pct / 100 * x + ev.abs;
+  const need = Math.max(lim(xmax), ...ev.pts.map(p => Math.abs(p.dev))) * 1.15;
+  const step = [0.05, 0.1, 0.2, 0.25, 0.5, 1, 2].find(s => need / s <= 4) || 5;
+  const ymax = Math.ceil(need / step) * step;
+  const x = v => L + v / xmax * (W - L - R);
+  const y = v => T + (ymax - v) / (2 * ymax) * (H - T - B);
+  const ns = "http://www.w3.org/2000/svg";
+  const el = (tag, attrs, text) => {
+    const e = document.createElementNS(ns, tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (text !== undefined) e.textContent = text;
+    return e;
+  };
+  const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "Abweichung je Messpunkt mit zulässigem Bereich" });
+  // Raster und Achsen
+  for (let v = -ymax; v <= ymax + 1e-9; v += step) {
+    svg.append(el("line", { x1: L, x2: W - R, y1: y(v), y2: y(v), class: Math.abs(v) < 1e-9 ? "zero" : "axis" }));
+    svg.append(el("text", { x: L - 8, y: y(v) + 4, "text-anchor": "end", class: "lbl" }, sgn(2, Math.abs(v) < 1e-9 ? 0 : v)));
+  }
+  const xs = xmax <= 40 ? 10 : 20;
+  for (let v = 0; v <= xmax + 1e-9; v += xs) {
+    svg.append(el("text", { x: x(v), y: H - B + 18, "text-anchor": "middle", class: "lbl" }, nf(0, v)));
+  }
+  svg.append(el("text", { x: W - R, y: H - 4, "text-anchor": "end", class: "ttl" }, "Referenzgeschwindigkeit in m/s"));
+  // Toleranzband ±(pct % v. M. + abs)
+  const band = [[0, lim(0)], [xmax, lim(xmax)], [xmax, -lim(xmax)], [0, -lim(0)]]
+    .map(([a, b]) => `${x(a).toFixed(1)},${y(b).toFixed(1)}`).join(" ");
+  svg.append(el("polygon", { points: band, class: "band" }));
+  // Messpunkte
+  for (const p of ev.pts) {
+    const c = el("circle", { cx: x(p.ref), cy: y(p.dev), r: 5.5, class: "pt" + (p.ok ? "" : " out") });
+    c.append(el("title", {}, `${nf(2, p.ref)} m/s: ${sgn(2, p.dev)} m/s (Grenze ±${nf(3, p.lim)})`));
+    svg.append(c);
+  }
+  $("chart").replaceChildren(svg);
+}
+
+// ---- Data-Matrix-Code fürs Etikett ----
+let dmUrl = null;
+async function datamatrix(text) {
+  try {
+    const { datamatrix, drawingSVG } = await import("./datamatrix.js");
+    const svg = datamatrix({ bcid: "datamatrix", text, scale: 4, paddingwidth: 0 }, drawingSVG());
+    $("dm").innerHTML = svg;
+    if (dmUrl) URL.revokeObjectURL(dmUrl);
+    dmUrl = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" }));
+    $("dmSave").href = dmUrl;
+    $("dmSave").hidden = false;
+  } catch (e) {
+    $("dm").textContent = "Code nicht verfügbar";
+  }
+}
+
+// ---- Anzeige ----
+let current = null;     // { url, d } der angezeigten Daten
+let lastChart = null;
+let isExample = false;
+
+function render(url, example) {
+  const d = parseUrl(url);
+  current = { url, d };
+  isExample = example;
+  const ev = evaluate(d);
+  const mb = Number(get(d, "mb")) || null;
+  const sn = get(d, "sn") || "—";
+
+  $("exampleChip").hidden = !example;
+  $("sn").textContent = sn;
+  $("dmSn").textContent = "SN " + sn;
+  const parts = [get(d, "g") || "Strömungssensor"];
+  if (mb) parts.push(`0 … ${nf(0, mb)} m/s`);
+  if (get(d, "tmax")) parts.push(`bis ${get(d, "tmax")} °C`);
+  $("sub").textContent = parts.join(" · ");
+
+  const allOk = ev.pts.length > 0 && ev.pts.every(p => p.ok);
+  const released = get(d, "ok") === "1";
+  $("verdict").className = "pill " + (allOk && released ? "ok" : "bad");
+  $("verdict").textContent = allOk && released ? "Innerhalb der Spezifikation · freigegeben"
+    : allOk ? "Innerhalb der Spezifikation · nicht freigegeben" : "Außerhalb der Spezifikation";
+
+  const worst = ev.pts.reduce((a, p) => (!a || p.use > a.use ? p : a), null);
+  $("fUse").replaceChildren(worst ? nf(0, worst.use * 100) : "—");
+  if (worst) { const s = document.createElement("small"); s.textContent = "%"; $("fUse").append(s); }
+  $("fUseNote").textContent = worst ? `höchstens, bei ${nf(worst.ref < 10 ? 2 : 0, worst.ref)} m/s (${sgn(2, worst.dev)} von ±${nf(3, worst.lim)} m/s)` : "";
+  $("fPts").textContent = ev.pts.length;
+  $("fRange").textContent = ev.pts.length ? `${nf(2, ev.pts[0].ref)} … ${nf(0, ev.pts[ev.pts.length - 1].ref)} m/s` : "";
+  const date = get(d, "d") ? new Date(get(d, "d") + "T12:00") : null;
+  if (date && !isNaN(date)) {
+    const days = Math.floor((Date.now() - date) / 864e5);
+    $("fAge").replaceChildren(String(days));
+    const s = document.createElement("small"); s.textContent = days === 1 ? "Tag" : "Tage"; $("fAge").append(s);
+    $("fDate").textContent = "am " + new Intl.DateTimeFormat("de-DE", { dateStyle: "medium" }).format(date);
+  } else { $("fAge").textContent = "—"; $("fDate").textContent = ""; }
+
+  chart(ev, mb);
+  lastChart = [ev, mb];
+  $("legBand").textContent = `Zulässig: ±(${nf(0, ev.pct)} % v. M. + ${nf(2, ev.abs)} m/s)`;
+
+  $("rows").replaceChildren(...ev.pts.map(p => {
+    const tr = document.createElement("tr");
+    const cells = [nf(2, p.ref), nf(3, p.ma), nf(2, p.disp), sgn(2, p.dev), nf(3, p.lim)];
+    for (const c of cells) { const td = document.createElement("td"); td.textContent = c; tr.append(td); }
+    const st = document.createElement("td");
+    st.className = "st " + (p.ok ? "ok" : "bad");
+    const long = document.createElement("span");
+    long.className = "long";
+    long.textContent = p.ok ? " in Toleranz" : " außerhalb";
+    st.append(p.ok ? "✓" : "✗", long);
+    tr.append(st);
+    return tr;
+  }));
+
+  const rows = [];
+  const [ao0, ao1] = (get(d, "ao") || "").split("-").map(Number);
+  if (mb && ao1) rows.push(["Analogausgang", `${nf(0, ao0)} … ${nf(0, ao1)} mA ≙ 0 … ${nf(0, mb)} m/s`]);
+  rows.push(["Spezifikation", `±(${nf(0, ev.pct)} % v. M. + ${nf(2, ev.abs)} m/s)`]);
+  if (get(d, "ur")) rows.push(["Messunsicherheit Referenz", `${nf(1, Number(get(d, "ur")))} % (k = 2)`]);
+  const [p, t, rh] = nums(get(d, "um"));
+  if (!isNaN(p)) rows.push(["Umgebung", `${nf(0, p)} hPa · ${nf(0, t)} °C · ${nf(0, rh)} % r. F.`]);
+  $("cond").replaceChildren(...rows.map(([k, v]) => {
+    const r = document.createElement("div"); r.className = "row";
+    const dt = document.createElement("dt"); dt.textContent = k;
+    const dd = document.createElement("dd"); dd.textContent = v;
+    r.append(dt, dd); return r;
+  }));
+
+  $("inCheck").checked = get(d, "c") === "1";
+  $("rawUrl").textContent = url;
+  // Etikett ohne Stand der Eingangsprüfung, damit es nach dem Abhaken gültig bleibt
+  datamatrix(withField(d, "c", null));
+  updateMem();
+  updateButtons();
+}
+
+// URL, die geschrieben würde
+const wanted = () => withField(current.d, "c", $("inCheck").checked ? "1" : null);
+
+function updateMem() {
+  const url = wanted();
+  const bytes = ndefSize(url);
+  const [name, cap] = CHIPS.find(([, c]) => bytes <= c) || CHIPS[CHIPS.length - 1];
+  $("memText").textContent = `${bytes} Byte auf dem Tag · passt auf ${name} (${cap} Byte)`;
+  $("memBar").style.width = Math.min(100, bytes / cap * 100) + "%";
+}
+
+// ---- Tag lesen / schreiben ----
+const io = new TagIO();
+let abort = null;
+
+function show(kind, text) { const m = $("msg"); m.className = "msg " + kind; m.textContent = text; m.hidden = !text; }
+
+function updateButtons() {
+  const busy = !!abort;
+  $("connectBtn").hidden = mode !== "serial";
+  $("connectBtn").textContent = io.dev ? "Neu verbinden" : "Lesegerät verbinden";
+  $("connectBtn").disabled = busy;
+  $("readBtn").hidden = $("writeBtn").hidden = !mode;
+  $("readBtn").disabled = busy || !io.ready;
+  $("inCheck").disabled = busy || !io.ready;
+  // Beispieldaten dürfen immer geschrieben werden (auf einen leeren Tag, zum Einrichten der Vorführung)
+  $("writeBtn").disabled = busy || !io.ready || !current || (!isExample && wanted() === current.url);
+  $("cancelBtn").hidden = !busy;
+  $("device").textContent = mode === "nfc" ? "Lesegerät: NFC des Handys"
+    : mode === "serial" ? `Lesegerät: ${io.label}` + (io.dev ? "" : " · noch nicht verbunden")
+    : "Abhaken und auf den Tag schreiben geht in Chrome auf Android oder am PC mit Chrome/Edge und PN532.";
+}
+
+async function withTag(prompt, fn) {
+  abort = new AbortController();
+  updateButtons();
+  show("info", prompt);
+  const timer = setTimeout(() => abort?.abort(), 30000);
+  try { return await fn(abort.signal); }
+  catch (e) { show("bad", friendly(e)); return null; }
+  finally { clearTimeout(timer); abort?.abort(); abort = null; updateButtons(); }
+}
+
+const onNfcError = t => show("bad", t);
+const prompt = () => mode === "nfc" ? "Tag an die Rückseite des Handys halten …" : "Tag auf das Lesegerät legen …";
+
+async function readTag() {
+  const url = await withTag(prompt(), s => io.read(s, onNfcError));
+  if (url === null) return;
+  const d = parseUrl(url);
+  if (!d || !get(d, "sn") || !get(d, "m")) {
+    show("bad", url ? `Auf dem Tag steht kein Kalibrierschein. Inhalt: ${url.length > 70 ? url.slice(0, 70) + "…" : url}` : "Der Tag ist leer.");
+    return;
+  }
+  history.replaceState(null, "", "#" + url.slice(url.indexOf("#") + 1));
+  render(url, false);
+  show("ok", `Gelesen: Kalibrierschein SN ${get(d, "sn")}.`);
+}
+
+async function writeTag() {
+  const sn = get(current.d, "sn");
+  const checked = $("inCheck").checked;
+  const res = await withTag(prompt(), s => io.update(tagUrl => {
+    const t = tagUrl && parseUrl(tagUrl);
+    // Leerer Tag: vollständigen Schein schreiben (Einrichtung der Vorführung)
+    if (!tagUrl) return wanted();
+    const found = t && get(t, "sn");
+    if (found !== sn || !get(t, "m")) throw new Error(`Falscher Tag: ${found ? "SN " + found : "anderer Inhalt"} statt SN ${sn}. Nichts geschrieben.`);
+    return withField(t, "c", checked ? "1" : null);
+  }, s, onNfcError));
+  if (!res) return;
+  history.replaceState(null, "", "#" + res.url.slice(res.url.indexOf("#") + 1));
+  render(res.url, false);
+  show("ok", res.verified
+    ? `Geschrieben und geprüft: SN ${sn}, ${res.bytes} von ${res.size} Byte auf ${res.chip}.`
+    : `Geschrieben: SN ${sn}. Zur Kontrolle den Tag erneut scannen.`);
+}
+
+async function connect() {
+  show("info", "Verbinde mit dem Lesegerät …");
+  try { await io.connect(); show("", ""); }
+  catch (e) {
+    show("bad", e?.name === "NotFoundError" ? "Kein Port ausgewählt."
+      : `Verbindung fehlgeschlagen: ${friendly(e)} Schalter am Modul auf HSU (beide 0) und Verkabelung prüfen.`);
+  }
+  updateButtons();
+}
+
+$("connectBtn").addEventListener("click", connect);
+$("readBtn").addEventListener("click", readTag);
+$("writeBtn").addEventListener("click", writeTag);
+$("cancelBtn").addEventListener("click", () => abort?.abort());
+$("inCheck").addEventListener("change", () => { updateMem(); updateButtons(); });
+
+const fromLocation = () => {
+  const h = location.hash.slice(1);
+  if (!/(^|&)sn=/.test(h)) return false;
+  render(new URL("kal.html", location.href).href + "#" + h, false);
+  return true;
+};
+window.addEventListener("hashchange", fromLocation);
+let resizeTimer;
+window.addEventListener("resize", () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(() => lastChart && chart(...lastChart), 150); });
+if (!fromLocation()) render(EXAMPLE, true);
+
+if (mode === "serial") {
+  io.autoConnect().then(updateButtons, updateButtons);
+  navigator.serial.addEventListener("disconnect", () => { io.dev = null; updateButtons(); show("bad", "Lesegerät getrennt."); });
+}
+if ("serviceWorker" in navigator && window.isSecureContext) navigator.serviceWorker.register("sw.js").catch(() => {});
+</script>
+</body>
+</html>
