@@ -94,6 +94,8 @@
   .pill::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
   .pill.ok { color: var(--ok); background: var(--ok-bg); }
   .pill.bad { color: var(--bad); background: var(--bad-bg); }
+  .pill.none { color: var(--muted); background: var(--line); }
+  .pill.none::before { background: transparent; border: 1.5px solid currentColor; }
 
   .figures {
     background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
@@ -149,6 +151,9 @@
   .check input { width: 22px; height: 22px; margin: 0; accent-color: var(--accent); flex: none; }
   .check:has(input:disabled) { cursor: default; }
   .device { margin: 0; font-size: 13px; color: var(--muted); }
+  .empty-hint { margin: 0; font-size: 15px; }
+  .chart .none { fill: var(--muted); font: 500 13px var(--sans); }
+  td.ph { color: var(--muted); }
   .actions { display: flex; flex-wrap: wrap; gap: 8px; }
   button, a.btn {
     font: 500 15px var(--sans); border-radius: 6px; padding: 10px 16px; cursor: pointer; min-height: 44px;
@@ -168,7 +173,7 @@
   .dm { background: #fff; padding: 10px; border-radius: 6px; width: 148px; border: 1px solid var(--line); }
   .dm svg { display: block; width: 100%; height: auto; }
   .label-text { display: grid; gap: 4px; font-size: 13px; color: var(--muted); }
-  .label-text b { font: 600 16px var(--mono); color: var(--ink); }
+  .label-text b { font: 600 15px var(--sans); color: var(--ink); }
 
   .url { margin: 0; font: 12px/1.5 var(--mono); background: var(--bg); border-radius: 6px; padding: 10px 12px; white-space: pre-wrap; word-break: break-all; }
   .mem { display: grid; gap: 6px; font-size: 13px; color: var(--muted); }
@@ -192,11 +197,27 @@
 
 <main class="sheet">
   <header class="head">
-    <div class="eyebrow">Kalibrierschein · Vorführung <span class="chip example" id="exampleChip" hidden>Beispieldaten</span></div>
+    <div class="eyebrow">Kalibrierschein · Vorführung</div>
     <h1><small>SN</small><span id="sn">—</span></h1>
     <p class="sub" id="sub"></p>
     <span class="pill" id="verdict"></span>
   </header>
+
+  <section>
+    <h2>NFC-Tag</h2>
+    <div class="card">
+      <p class="empty-hint" id="emptyHint" hidden></p>
+      <label class="check"><input type="checkbox" id="inCheck" disabled> Eingangsprüfung durchgeführt</label>
+      <p class="device" id="device"></p>
+      <div class="actions">
+        <button type="button" class="secondary" id="connectBtn" hidden>Lesegerät verbinden</button>
+        <button type="button" class="secondary" id="readBtn" hidden>Tag lesen</button>
+        <button type="button" id="writeBtn" hidden disabled>Auf Tag schreiben</button>
+        <button type="button" class="secondary" id="cancelBtn" hidden>Abbrechen</button>
+      </div>
+      <p class="msg" id="msg" hidden></p>
+    </div>
+  </section>
 
   <div class="figures">
     <div class="fig main">
@@ -246,34 +267,19 @@
     <dl id="cond"></dl>
   </section>
 
-  <section>
-    <h2>Beim Empfänger</h2>
-    <div class="card">
-      <label class="check"><input type="checkbox" id="inCheck" disabled> Eingangsprüfung durchgeführt</label>
-      <p class="device" id="device"></p>
-      <div class="actions">
-        <button type="button" class="secondary" id="connectBtn" hidden>Lesegerät verbinden</button>
-        <button type="button" class="secondary" id="readBtn" hidden>Tag lesen</button>
-        <button type="button" id="writeBtn" hidden disabled>Auf Tag schreiben</button>
-        <button type="button" class="secondary" id="cancelBtn" hidden>Abbrechen</button>
-      </div>
-      <p class="msg" id="msg" hidden></p>
-    </div>
-  </section>
-
-  <section>
+  <section id="labelSec">
     <h2>Etikett</h2>
     <div class="card label">
-      <div class="dm" id="dm" role="img" aria-label="Data-Matrix-Code mit den Kalibrierdaten"></div>
+      <div class="dm" id="dm" role="img" aria-label="Data-Matrix-Code mit der Adresse dieser Seite"></div>
       <div class="label-text">
-        <b id="dmSn">—</b>
-        <span>Data-Matrix-Code mit denselben Kalibrierdaten wie der NFC-Tag, ohne den Stand der Eingangsprüfung. Mit der Kamera-App scannen öffnet diese Seite.</span>
+        <b>Code für den Aufkleber</b>
+        <span>Enthält nur die Adresse dieser Vorlage, keine Messwerte. Scannen öffnet die Seite, die Werte kommen dann vom NFC-Tag am Sensor.</span>
         <span><a class="btn" id="dmSave" download="kalibrierung-datamatrix.svg" href="#" hidden>Als SVG speichern</a></span>
       </div>
     </div>
   </section>
 
-  <section class="card">
+  <section class="card" id="tagSec">
     <h2 style="margin:0">Inhalt des NFC-Tags</h2>
     <pre class="url" id="rawUrl"></pre>
     <div class="mem"><span id="memText"></span><div class="bar"><span id="memBar"></span></div></div>
@@ -285,8 +291,7 @@
 import { TagIO, mode, friendly } from "./tagio.js";
 import { ndefSize } from "./ndef.js";
 
-// (Beispieldaten entfernt)
-// (Beispieldaten entfernt)
+// Die Seite ist nur die Vorlage; alle Sensordaten kommen vom NFC-Tag (Teil hinter #).
 const CHIPS = [["NTAG213", 144], ["NTAG215", 496], ["NTAG216", 872]];
 
 const $ = id => document.getElementById(id);
@@ -326,12 +331,14 @@ function evaluate(d) {
 
 // ---- Diagramm: Abweichung mit Toleranzband ----
 function chart(ev, mb) {
+  const empty = !ev;
+  if (empty) ev = { pct: 0, abs: 0, pts: [] };
   // Zeichenbreite = tatsächliche Breite, damit die Beschriftung am Handy lesbar bleibt
   const W = Math.round(Math.max(300, Math.min(640, $("chart").clientWidth || 600)));
   const H = W < 480 ? 220 : 240, L = 52, R = 14, T = 14, B = 40;
   const xmax = mb || Math.max(...ev.pts.map(p => p.ref)) * 1.1;
   const lim = x => ev.pct / 100 * x + ev.abs;
-  const need = Math.max(lim(xmax), ...ev.pts.map(p => Math.abs(p.dev))) * 1.15;
+  const need = empty ? 0.2 : Math.max(lim(xmax), ...ev.pts.map(p => Math.abs(p.dev))) * 1.15;
   const step = [0.05, 0.1, 0.2, 0.25, 0.5, 1, 2].find(s => need / s <= 4) || 5;
   const ymax = Math.ceil(need / step) * step;
   const x = v => L + v / xmax * (W - L - R);
@@ -357,7 +364,8 @@ function chart(ev, mb) {
   // Toleranzband ±(pct % v. M. + abs)
   const band = [[0, lim(0)], [xmax, lim(xmax)], [xmax, -lim(xmax)], [0, -lim(0)]]
     .map(([a, b]) => `${x(a).toFixed(1)},${y(b).toFixed(1)}`).join(" ");
-  svg.append(el("polygon", { points: band, class: "band" }));
+  if (!empty) svg.append(el("polygon", { points: band, class: "band" }));
+  else svg.append(el("text", { x: (L + W - R) / 2, y: y(0) - 12, "text-anchor": "middle", class: "none" }, "Keine Messwerte – Tag lesen"));
   // Messpunkte
   for (const p of ev.pts) {
     const c = el("circle", { cx: x(p.ref), cy: y(p.dev), r: 5.5, class: "pt" + (p.ok ? "" : " out") });
@@ -384,21 +392,48 @@ async function datamatrix(text) {
 }
 
 // ---- Anzeige ----
-let current = null;     // { url, d } der angezeigten Daten
+let current = null;     // { url, d } der angezeigten Daten, null = leere Vorlage
 let lastChart = null;
-let isExample = false;
 
-function render(url, example) {
+function renderEmpty() {
+  current = null;
+  $("sn").textContent = "—";
+  $("sub").textContent = "Keine Sensordaten geladen";
+  $("verdict").className = "pill none";
+  $("verdict").textContent = "Wartet auf NFC-Tag";
+  for (const id of ["fUse", "fPts", "fAge"]) $(id).textContent = "—";
+  for (const id of ["fUseNote", "fRange", "fDate"]) $(id).textContent = "";
+  chart(null, 40);
+  lastChart = [null, 40];
+  $("legBand").textContent = "Zulässig";
+  $("rows").replaceChildren(...[0, 1, 2].map(() => {
+    const tr = document.createElement("tr");
+    for (let i = 0; i < 6; i++) { const td = document.createElement("td"); td.className = i === 5 ? "st ph" : "ph"; td.textContent = "—"; tr.append(td); }
+    return tr;
+  }));
+  $("cond").replaceChildren(...["Analogausgang", "Spezifikation", "Messunsicherheit Referenz", "Umgebung"].map(k => {
+    const r = document.createElement("div"); r.className = "row";
+    const dt = document.createElement("dt"); dt.textContent = k;
+    const dd = document.createElement("dd"); dd.textContent = "—";
+    r.append(dt, dd); return r;
+  }));
+  $("inCheck").checked = false;
+  $("emptyHint").hidden = false;
+  $("tagSec").hidden = true;
+  updateButtons();
+}
+
+function render(url) {
+  if (!url) return renderEmpty();
   const d = parseUrl(url);
   current = { url, d };
-  isExample = example;
+  $("emptyHint").hidden = true;
+  $("tagSec").hidden = false;
   const ev = evaluate(d);
   const mb = Number(get(d, "mb")) || null;
   const sn = get(d, "sn") || "—";
 
-  $("exampleChip").hidden = !example;
   $("sn").textContent = sn;
-  $("dmSn").textContent = "SN " + sn;
   const parts = [get(d, "g") || "Strömungssensor"];
   if (mb) parts.push(`0 … ${nf(0, mb)} m/s`);
   if (get(d, "tmax")) parts.push(`bis ${get(d, "tmax")} °C`);
@@ -458,8 +493,6 @@ function render(url, example) {
 
   $("inCheck").checked = get(d, "c") === "1";
   $("rawUrl").textContent = url;
-  // Etikett ohne Stand der Eingangsprüfung, damit es nach dem Abhaken gültig bleibt
-  datamatrix(withField(d, "c", null));
   updateMem();
   updateButtons();
 }
@@ -468,6 +501,7 @@ function render(url, example) {
 const wanted = () => withField(current.d, "c", $("inCheck").checked ? "1" : null);
 
 function updateMem() {
+  if (!current) return;
   const url = wanted();
   const bytes = ndefSize(url);
   const [name, cap] = CHIPS.find(([, c]) => bytes <= c) || CHIPS[CHIPS.length - 1];
@@ -488,9 +522,12 @@ function updateButtons() {
   $("connectBtn").disabled = busy;
   $("readBtn").hidden = $("writeBtn").hidden = !mode;
   $("readBtn").disabled = busy || !io.ready;
-  $("inCheck").disabled = busy || !io.ready;
-  // Beispieldaten dürfen immer geschrieben werden (auf einen leeren Tag, zum Einrichten der Vorführung)
-  $("writeBtn").disabled = busy || !io.ready || !current || (!isExample && wanted() === current.url);
+  $("inCheck").disabled = busy || !io.ready || !current;
+  $("emptyHint").textContent = "Diese Seite ist nur die Vorlage. Die Werte stehen auf dem NFC-Tag am Sensor. " + (
+    mode === "nfc" ? "„Tag lesen“ antippen und den Tag an die Rückseite des Handys halten."
+    : mode === "serial" ? (io.dev ? "Tag auf das Lesegerät legen und „Tag lesen“ klicken." : "Lesegerät verbinden, Tag auflegen und „Tag lesen“ klicken.")
+    : "Handy mit NFC an den Tag halten, dann öffnet sich die Seite mit den Werten des Sensors.");
+  $("writeBtn").disabled = busy || !io.ready || !current || wanted() === current.url;
   $("cancelBtn").hidden = !busy;
   $("device").textContent = mode === "nfc" ? "Lesegerät: NFC des Handys"
     : mode === "serial" ? `Lesegerät: ${io.label}` + (io.dev ? "" : " · noch nicht verbunden")
@@ -519,7 +556,7 @@ async function readTag() {
     return;
   }
   history.replaceState(null, "", "#" + url.slice(url.indexOf("#") + 1));
-  render(url, false);
+  render(url);
   show("ok", `Gelesen: Kalibrierschein SN ${get(d, "sn")}.`);
 }
 
@@ -528,15 +565,14 @@ async function writeTag() {
   const checked = $("inCheck").checked;
   const res = await withTag(prompt(), s => io.update(tagUrl => {
     const t = tagUrl && parseUrl(tagUrl);
-    // Leerer Tag: vollständigen Schein schreiben (Einrichtung der Vorführung)
-    if (!tagUrl) return wanted();
+    if (!tagUrl) throw new Error("Der Tag ist leer. Nichts geschrieben.");
     const found = t && get(t, "sn");
     if (found !== sn || !get(t, "m")) throw new Error(`Falscher Tag: ${found ? "SN " + found : "anderer Inhalt"} statt SN ${sn}. Nichts geschrieben.`);
     return withField(t, "c", checked ? "1" : null);
   }, s, onNfcError));
   if (!res) return;
   history.replaceState(null, "", "#" + res.url.slice(res.url.indexOf("#") + 1));
-  render(res.url, false);
+  render(res.url);
   show("ok", res.verified
     ? `Geschrieben und geprüft: SN ${sn}, ${res.bytes} von ${res.size} Byte auf ${res.chip}.`
     : `Geschrieben: SN ${sn}. Zur Kontrolle den Tag erneut scannen.`);
@@ -560,14 +596,14 @@ $("inCheck").addEventListener("change", () => { updateMem(); updateButtons(); })
 
 const fromLocation = () => {
   const h = location.hash.slice(1);
-  if (!/(^|&)sn=/.test(h)) return false;
-  render(new URL("kal.html", location.href).href + "#" + h, false);
-  return true;
+  render(/(^|&)sn=/.test(h) ? new URL("kal.html", location.href).href + "#" + h : null);
 };
 window.addEventListener("hashchange", fromLocation);
 let resizeTimer;
 window.addEventListener("resize", () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(() => lastChart && chart(...lastChart), 150); });
-if (!fromLocation()) render(EXAMPLE, true);
+fromLocation();
+// Aufkleber-Code: nur die Adresse der Vorlage, für alle Sensoren gleich
+datamatrix(new URL("kal.html", location.href).href);
 
 if (mode === "serial") {
   io.autoConnect().then(updateButtons, updateButtons);
