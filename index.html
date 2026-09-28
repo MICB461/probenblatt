@@ -65,6 +65,7 @@
   }
 
   * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
   body {
     background: var(--bg);
     color: var(--ink);
@@ -136,6 +137,14 @@
   dd { margin: 0; font-family: var(--mono); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
   dd.text { font-family: var(--sans); }
   dd.missing { color: var(--muted); }
+  dd.done { color: var(--ok); font-family: var(--sans); font-weight: 500; }
+  dd.open { color: var(--muted); font-family: var(--sans); }
+  a.edit {
+    display: inline-flex; align-items: center; min-height: 40px; margin-top: 10px; padding: 8px 14px;
+    font-size: 14px; font-weight: 500; color: var(--accent); text-decoration: none;
+    border: 1px solid var(--line); border-radius: 6px;
+  }
+  a.edit:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
   /* Tag-Inhalt */
   .tag { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: grid; gap: 12px; }
@@ -212,6 +221,12 @@
     <dl id="secBottle"></dl>
   </section>
 
+  <section>
+    <h2>Bearbeitungsstand</h2>
+    <dl id="secChecks"></dl>
+    <a class="edit" id="editLink" href="bearbeiten.html" hidden>Bearbeiten und auf Tag schreiben</a>
+  </section>
+
   <section id="secNoteWrap" hidden>
     <h2>Bemerkung</h2>
     <dl id="secNote"></dl>
@@ -239,7 +254,7 @@
 
 <script>
 (() => {
-  const EXAMPLE = "https://proben.example.org/p#id=AB-0142&ort=MS3%20Abluft%20Halle%202&s=2026-09-24T10:57&e=2026-09-24T12:57&v=120.5&q=1.00&t=21.4&p=1004&dp=-52&rg=2026-09-10&dev=GP-07&op=KW&st=ok&n=Parallelprobe%20zu%20Messung%203";
+  const EXAMPLE = "https://proben.example.org/p#id=AB-0142&ort=MS3%20Abluft%20Halle%202&s=2026-09-24T10:57&e=2026-09-24T12:57&v=120.5&q=1.00&t=21.4&p=1004&dp=-52&rg=2026-09-10&dev=GP-07&op=KW&st=ok&c=1&n=Parallelprobe%20zu%20Messung%203";
 
   const STATUS = {
     ok: ["ok", "Abgeschlossen"],
@@ -247,6 +262,8 @@
     ab: ["bad", "Abgebrochen"]
   };
   const DEW_LIMIT = -40; // °C, darüber droht Durchbruch
+  // Bits im Feld c=; dieselbe Liste steht in bearbeiten.html
+  const CHECKS = ["Im Labor eingegangen", "Analyse abgeschlossen", "Flasche regeneriert, wieder einsatzbereit"];
 
   const $ = id => document.getElementById(id);
   const nf = d => new Intl.NumberFormat("de-DE", { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -277,7 +294,7 @@
     const tlv = record < 255 ? 2 : 4;
     return tlv + record + 1;                                   // + Terminator
   }
-  const CHIPS = [["NTAG213", 144], ["NTAG215", 504], ["NTAG216", 888]];
+  const CHIPS = [["NTAG213", 144], ["NTAG215", 496], ["NTAG216", 872]]; // nutzbarer NDEF-Speicher
 
   function row(label, value, opts = {}) {
     const r = document.createElement("div");
@@ -347,6 +364,16 @@
       row("Probenehmer", d.dev || null),
       row("Bediener", d.op || null, { text: true })
     ]);
+    const bits = Number(d.c) || 0;
+    fill("secChecks", CHECKS.map((label, i) => {
+      const r = row(label, bits & (1 << i) ? "✓ erledigt" : "offen");
+      r.lastChild.className = bits & (1 << i) ? "done" : "open";
+      return r;
+    }));
+    // Bearbeiten nur anbieten, wo der Browser Tags schreiben kann
+    const canWrite = "NDEFReader" in window || "serial" in navigator;
+    $("editLink").hidden = isExample || !canWrite || !d.id;
+    $("editLink").href = "bearbeiten.html#" + (String(url).split("#")[1] || "");
     $("secNoteWrap").hidden = !d.n;
     if (d.n) fill("secNote", [row("Notiz", d.n, { text: true })]);
 

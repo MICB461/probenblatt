@@ -1,0 +1,442 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0e6e64">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<title>Probenblatt bearbeiten</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --bg: #f4f7f6;
+    --surface: #ffffff;
+    --ink: #15201c;
+    --muted: #5a6a64;
+    --line: #dde5e2;
+    --accent: #0e6e64;
+    --accent-soft: #e0f0ed;
+    --ok: #1d7340;
+    --ok-bg: #e2f2e7;
+    --warn: #8f5500;
+    --warn-bg: #fbeed6;
+    --bad: #a1262c;
+    --bad-bg: #fae3e4;
+    --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --bg: #0e1412;
+      --surface: #151f1c;
+      --ink: #e3ebe8;
+      --muted: #94a49e;
+      --line: #25322e;
+      --accent: #52c2b4;
+      --accent-soft: #173430;
+      --ok: #72cf92;
+      --ok-bg: #15301f;
+      --warn: #efb45c;
+      --warn-bg: #33260f;
+      --bad: #f08c90;
+      --bad-bg: #3a191c;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #0e1412;
+    --surface: #151f1c;
+    --ink: #e3ebe8;
+    --muted: #94a49e;
+    --line: #25322e;
+    --accent: #52c2b4;
+    --accent-soft: #173430;
+    --ok: #72cf92;
+    --ok-bg: #15301f;
+    --warn: #efb45c;
+    --warn-bg: #33260f;
+    --bad: #f08c90;
+    --bad-bg: #3a191c;
+  }
+
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font: 15px/1.5 var(--sans);
+    padding-inline: 16px;
+    padding-block: 24px 48px;
+  }
+  .sheet { max-width: 560px; margin: 0 auto; display: grid; gap: 20px; }
+
+  .head { display: grid; gap: 8px; }
+  .eyebrow { font-size: 12px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  h1 {
+    margin: 0; font: 600 clamp(32px, 9vw, 44px)/1.1 var(--mono); letter-spacing: -.01em;
+    overflow-wrap: anywhere;
+  }
+  h1.empty { color: var(--muted); }
+  .place { margin: 0; font-size: 17px; text-wrap: balance; }
+
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: grid; gap: 12px; }
+  h2 { margin: 0; font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .device { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+  .device-text { flex: 1 1 200px; margin: 0; font-size: 14px; }
+  .device-text small { display: block; color: var(--muted); font-size: 13px; }
+
+  .checks { display: grid; gap: 0; border-top: 1px solid var(--line); }
+  .check {
+    display: flex; align-items: center; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--line);
+    font-size: 15px; cursor: pointer;
+  }
+  .check input { width: 20px; height: 20px; margin: 0; accent-color: var(--accent); flex: none; }
+  .check:has(input:disabled) { cursor: default; color: var(--muted); }
+
+  .field { display: grid; gap: 6px; }
+  label.lbl { font-size: 13px; font-weight: 500; }
+  textarea {
+    font: 15px/1.45 var(--sans); color: var(--ink); background: var(--bg);
+    border: 1px solid var(--line); border-radius: 6px; padding: 9px 10px; resize: vertical; min-height: 84px;
+  }
+  .mem { display: grid; gap: 6px; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .mem.over { color: var(--bad); }
+  .bar { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
+  .bar span { display: block; height: 100%; background: var(--accent); border-radius: 3px; }
+  .mem.over .bar span { background: var(--bad); }
+
+  .actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  button, a.btn {
+    font: 500 15px var(--sans); border-radius: 6px; padding: 10px 16px; cursor: pointer; min-height: 44px;
+    border: 1px solid var(--accent); background: var(--accent); color: var(--surface);
+    text-decoration: none; display: inline-flex; align-items: center;
+  }
+  button.secondary, a.btn { background: transparent; color: var(--accent); }
+  button:disabled { opacity: .45; cursor: default; }
+  textarea:focus-visible, button:focus-visible, a.btn:focus-visible, .check input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .msg { margin: 0; border-radius: 8px; padding: 10px 14px; font-size: 14px; }
+  .msg.info { background: var(--accent-soft); color: var(--accent); }
+  .msg.ok { background: var(--ok-bg); color: var(--ok); }
+  .msg.bad { background: var(--bad-bg); color: var(--bad); }
+  .msg.info::before {
+    content: ""; display: inline-block; width: 8px; height: 8px; margin-right: 8px; border-radius: 50%;
+    background: currentColor; vertical-align: 1px; animation: pulse 1.2s ease-in-out infinite;
+  }
+  @keyframes pulse { 50% { opacity: .25; } }
+  @media (prefers-reduced-motion: reduce) { .msg.info::before { animation: none; } }
+  .hint { margin: 0; font-size: 13px; color: var(--muted); }
+</style>
+</head>
+<body>
+
+<main class="sheet">
+  <header class="head">
+    <div class="eyebrow">Gasprobe · Probenblatt bearbeiten</div>
+    <h1 id="sampleId" class="empty">Kein Tag geladen</h1>
+    <p class="place" id="place">Tag lesen, um Bearbeitungsstand und Notiz zu ändern.</p>
+  </header>
+
+  <section class="card">
+    <h2>Lesegerät</h2>
+    <div class="device">
+      <p class="device-text" id="deviceText"></p>
+      <button type="button" class="secondary" id="connectBtn" hidden>Lesegerät verbinden</button>
+    </div>
+    <div class="actions">
+      <button type="button" id="readBtn" disabled>Tag lesen</button>
+    </div>
+  </section>
+
+  <p class="msg" id="msg" hidden></p>
+
+  <section class="card">
+    <h2>Bearbeitungsstand</h2>
+    <div class="checks" id="checks"></div>
+    <div class="field">
+      <label class="lbl" for="note">Notiz</label>
+      <textarea id="note" rows="3" disabled></textarea>
+    </div>
+    <div class="mem" id="mem">
+      <span id="memText">—</span>
+      <div class="bar"><span id="memBar" style="width:0"></span></div>
+    </div>
+    <div class="actions">
+      <button type="button" id="writeBtn" disabled>Auf Tag schreiben</button>
+      <button type="button" class="secondary" id="cancelBtn" hidden>Abbrechen</button>
+      <a class="btn" id="viewLink" href="./" hidden>Probenblatt ansehen</a>
+    </div>
+    <p class="hint">Geschrieben wird nur auf den Tag mit derselben Flaschen-ID. Alle Messwerte bleiben unverändert.</p>
+  </section>
+</main>
+
+<script type="module">
+import { PN532 } from "./pn532.js";
+import { ndefSize } from "./ndef.js";
+
+// Bits im Feld c=; dieselbe Liste steht in index.html
+const CHECKS = ["Im Labor eingegangen", "Analyse abgeschlossen", "Flasche regeneriert, wieder einsatzbereit"];
+// Nutzbarer NDEF-Speicher laut Capability Container
+const CHIPS = [["NTAG213", 144], ["NTAG215", 496], ["NTAG216", 872]];
+
+const $ = id => document.getElementById(id);
+const nfc = "NDEFReader" in window;
+const serial = !nfc && PN532.supported();
+
+let loaded = null;   // { base, pairs: [[key, rawValue]], url }
+let dev = null;      // PN532
+let tagSize = null;  // vom zuletzt gelesenen Tag, falls bekannt
+let abort = null;
+
+// ---- Adresse zerlegen und neu zusammensetzen, ohne unveränderte Felder anzufassen ----
+function parseUrl(url) {
+  const h = url.indexOf("#");
+  if (h < 0) return null;
+  const pairs = url.slice(h + 1).split("&").filter(Boolean).map(p => {
+    const i = p.indexOf("=");
+    return i < 0 ? [p, ""] : [p.slice(0, i), p.slice(i + 1)];
+  });
+  return { base: url.slice(0, h), pairs, url };
+}
+const dec = v => { try { return decodeURIComponent(v.replace(/\+/g, " ")); } catch (e) { return v; } };
+const field = (d, k) => { const p = d.pairs.find(([key]) => key === k); return p ? dec(p[1]) : null; };
+const idOf = url => { const d = url && parseUrl(url); return d ? field(d, "id") : null; };
+
+function buildUrl() {
+  let bits = 0;
+  document.querySelectorAll("#checks input").forEach((cb, i) => { if (cb.checked) bits |= 1 << i; });
+  const note = $("note").value.trim().replace(/\s+/g, " ");
+  const set = { c: bits ? String(bits) : null, n: note ? encodeURIComponent(note) : null };
+  const pairs = [];
+  for (const [k, v] of loaded.pairs) {
+    if (k in set) { if (set[k] !== null) pairs.push([k, set[k]]); delete set[k]; }
+    else pairs.push([k, v]);
+  }
+  for (const k of ["c", "n"]) if (k in set && set[k] !== null) pairs.push([k, set[k]]);
+  return loaded.base + "#" + pairs.map(([k, v]) => `${k}=${v}`).join("&");
+}
+
+// ---- Anzeige ----
+function show(kind, text) {
+  const m = $("msg");
+  m.className = "msg " + kind;
+  m.textContent = text;
+  m.hidden = !text;
+}
+
+function renderChecks() {
+  $("checks").replaceChildren(...CHECKS.map((label, i) => {
+    const l = document.createElement("label");
+    l.className = "check";
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.id = "check" + i;
+    cb.disabled = true;
+    cb.addEventListener("change", updateMem);
+    l.append(cb, label);
+    return l;
+  }));
+}
+
+function load(url) {
+  const d = parseUrl(url || "");
+  if (!d || !field(d, "id")) {
+    show("bad", "Der Tag enthält keine Probendaten. Nur Tags mit Flaschen-ID lassen sich bearbeiten.");
+    return false;
+  }
+  loaded = d;
+  $("sampleId").textContent = field(d, "id");
+  $("sampleId").classList.remove("empty");
+  const ort = field(d, "ort");
+  $("place").textContent = ort ? `Messstelle ${ort}` : "Messstelle nicht erfasst";
+  const bits = Number(field(d, "c")) || 0;
+  document.querySelectorAll("#checks input").forEach((cb, i) => { cb.checked = !!(bits & (1 << i)); cb.disabled = false; });
+  $("note").value = field(d, "n") || "";
+  $("note").disabled = false;
+  $("viewLink").href = "./#" + url.slice(url.indexOf("#") + 1);
+  $("viewLink").hidden = false;
+  updateMem();
+  return true;
+}
+
+function updateMem() {
+  if (!loaded) return;
+  const url = buildUrl();
+  const bytes = ndefSize(url);
+  let name, cap;
+  if (tagSize) { cap = tagSize.size; name = tagSize.chip; }
+  else { const fit = CHIPS.find(([, c]) => bytes <= c) || CHIPS[CHIPS.length - 1]; [name, cap] = fit; }
+  const over = bytes > cap;
+  $("mem").classList.toggle("over", over);
+  $("memText").textContent = over
+    ? `${bytes} Byte · zu groß für ${name} (${cap} Byte). Notiz kürzen.`
+    : `${bytes} von ${cap} Byte · ${name}${tagSize ? "" : " oder größer"}`;
+  $("memBar").style.width = Math.min(100, bytes / cap * 100) + "%";
+  $("writeBtn").disabled = over || !!abort || !ready();
+  $("viewLink").href = "./#" + url.slice(url.indexOf("#") + 1);
+}
+
+const ready = () => nfc || (serial && dev);
+
+function setBusy(busy) {
+  $("readBtn").disabled = busy || !ready();
+  $("cancelBtn").hidden = !busy;
+  $("connectBtn").disabled = busy;
+  updateMemOrButtons();
+}
+function updateMemOrButtons() {
+  if (loaded) updateMem();
+  else $("writeBtn").disabled = true;
+}
+
+function friendly(e) {
+  if (e?.name === "AbortError") return "Abgebrochen.";
+  if (e?.name === "NotAllowedError") return "Der Browser hat den NFC-Zugriff nicht erlaubt. In den Website-Einstellungen NFC zulassen.";
+  if (e?.name === "NotSupportedError") return "NFC ist aus oder wird nicht unterstützt. In den Android-Einstellungen NFC einschalten.";
+  if (e?.name === "NetworkError") return "Übertragung zum Tag abgebrochen. Tag ruhig halten und nochmal versuchen.";
+  return e?.message || String(e);
+}
+
+// ---- Android: Web NFC ----
+function nfcUrl(message) {
+  for (const r of message.records) {
+    if (r.recordType === "url" || r.recordType === "absolute-url") return new TextDecoder().decode(r.data);
+  }
+  return null;
+}
+
+function nfcOnce(signal, onTag) {
+  const reader = new NDEFReader();
+  return new Promise((resolve, reject) => {
+    let done = false;
+    const finish = (fn, v) => { if (!done) { done = true; fn(v); } };
+    signal.addEventListener("abort", () => finish(reject, new DOMException("Abgebrochen", "AbortError")));
+    reader.onreadingerror = () => show("bad", "Tag nicht lesbar. Nochmal kurz an die Rückseite des Handys halten.");
+    reader.onreading = e => {
+      if (done) return;
+      Promise.resolve(onTag(reader, e)).then(v => finish(resolve, v), err => finish(reject, err));
+    };
+    reader.scan({ signal }).catch(err => finish(reject, err));
+  });
+}
+
+// ---- Abläufe ----
+async function withTag(prompt, fn) {
+  abort = new AbortController();
+  setBusy(true);
+  show("info", prompt);
+  const timer = setTimeout(() => abort?.abort(), 30000);
+  try {
+    return await fn(abort.signal);
+  } catch (e) {
+    show("bad", friendly(e));
+    return null;
+  } finally {
+    clearTimeout(timer);
+    abort?.abort();
+    abort = null;
+    setBusy(false);
+  }
+}
+
+async function readTag() {
+  const url = await withTag(nfc ? "Tag an die Rückseite des Handys halten …" : "Tag auf das Lesegerät legen …", async signal => {
+    if (nfc) return nfcOnce(signal, (r, e) => nfcUrl(e.message) ?? "");
+    await dev.waitForTag(signal);
+    tagSize = await dev.tagInfo();
+    return (await dev.readUrl(tagSize)) ?? "";
+  });
+  if (url === null) return;
+  if (load(url)) show("ok", `Gelesen: ${field(loaded, "id")}. Änderungen vornehmen und auf den Tag schreiben.`);
+}
+
+async function writeTag() {
+  const url = buildUrl();
+  const id = field(loaded, "id");
+  const result = await withTag(nfc ? `Tag ${id} an die Rückseite des Handys halten …` : `Tag ${id} auf das Lesegerät legen …`, async signal => {
+    if (nfc) {
+      return nfcOnce(signal, async (reader, e) => {
+        const found = idOf(nfcUrl(e.message));
+        if (found !== id) throw new Error(`Falscher Tag: ${found || "ohne Probendaten"} statt ${id}. Nichts geschrieben.`);
+        await reader.write({ records: [{ recordType: "url", data: url }] }, { signal });
+        return { verified: false };
+      });
+    }
+    await dev.waitForTag(signal);
+    const info = await dev.tagInfo();
+    const found = idOf(await dev.readUrl(info));
+    if (found !== id) throw new Error(`Falscher Tag: ${found || "ohne Probendaten"} statt ${id}. Nichts geschrieben.`);
+    tagSize = info;
+    return { verified: true, ...await dev.writeUrl(url, info) };
+  });
+  if (!result) return;
+  loaded = parseUrl(url);
+  updateMem();
+  show("ok", result.verified
+    ? `Geschrieben und geprüft: ${id}, ${result.bytes} von ${result.size} Byte auf ${result.chip}.`
+    : `Geschrieben: ${id}. Zur Kontrolle den Tag erneut scannen.`);
+}
+
+async function connect() {
+  $("connectBtn").disabled = true;
+  show("info", "Verbinde mit dem Lesegerät …");
+  try {
+    if (dev) await dev.close();
+    dev = await PN532.connect();
+    show("", "");
+    deviceStatus();
+  } catch (e) {
+    dev = null;
+    show("bad", e?.name === "NotFoundError"
+      ? "Kein Port ausgewählt."
+      : `Verbindung fehlgeschlagen: ${friendly(e)} Schalter am Modul auf HSU (beide 0) und USB-Kabel prüfen.`);
+    deviceStatus();
+  }
+  $("connectBtn").disabled = false;
+}
+
+function deviceStatus() {
+  const t = $("deviceText");
+  t.replaceChildren();
+  const small = s => { const e = document.createElement("small"); e.textContent = s; return e; };
+  if (nfc) {
+    t.append("NFC des Handys", small("Chrome auf Android · Web NFC"));
+  } else if (serial) {
+    t.append(dev ? `${dev.firmware} verbunden` : "PN532 über USB", small(dev ? "Web Serial · 115200 Baud" : "Noch nicht verbunden"));
+    $("connectBtn").hidden = false;
+    $("connectBtn").textContent = dev ? "Neu verbinden" : "Lesegerät verbinden";
+  } else {
+    t.append("Dieser Browser kann keine NFC-Tags schreiben.",
+      small("Am PC Chrome oder Edge mit PN532 verwenden, am Handy Chrome auf Android. Safari und Firefox können es nicht."));
+  }
+  $("readBtn").disabled = !ready();
+  updateMemOrButtons();
+}
+
+renderChecks();
+deviceStatus();
+$("connectBtn").addEventListener("click", connect);
+$("readBtn").addEventListener("click", readTag);
+$("writeBtn").addEventListener("click", writeTag);
+$("cancelBtn").addEventListener("click", () => abort?.abort());
+$("note").addEventListener("input", updateMem);
+
+// Von der Anzeigeseite kommend: Daten aus der Adresse übernehmen
+// Basis ist das Verzeichnis der Anzeigeseite, nicht bearbeiten.html
+if (location.hash.includes("=")) load(new URL("./", location.href).href + location.hash);
+
+// Bereits freigegebenen Port ohne Nachfrage wieder verbinden
+if (serial) {
+  navigator.serial.getPorts().then(ports => { if (ports.length === 1 && !dev) connect(); });
+  navigator.serial.addEventListener("disconnect", () => { dev = null; tagSize = null; deviceStatus(); show("bad", "Lesegerät getrennt."); });
+}
+
+if ("serviceWorker" in navigator && window.isSecureContext) navigator.serviceWorker.register("sw.js").catch(() => {});
+</script>
+</body>
+</html>
