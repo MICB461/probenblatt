@@ -1,6 +1,6 @@
 // Service Worker für das NFC-Probenblatt.
 // Bei jeder Änderung an index.html o. Ä. VERSION erhöhen, damit alte Caches gelöscht werden.
-const VERSION = "v8";
+const VERSION = "v10";
 const CACHE = `probenblatt-${VERSION}`;
 
 const SHELL = [
@@ -12,6 +12,8 @@ const SHELL = [
   "tagio.js",
   "kal.html",
   "datamatrix.js",
+  "messwert.html",
+  "qr.js",
   "manifest.webmanifest",
   "icon.svg",
   "icon-192.png",

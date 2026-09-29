@@ -1,0 +1,507 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0e6e64">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<title>Messwert erfassen</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --bg: #f4f7f6;
+    --surface: #ffffff;
+    --ink: #15201c;
+    --muted: #5a6a64;
+    --line: #dde5e2;
+    --accent: #0e6e64;
+    --accent-soft: #e0f0ed;
+    --ok: #1d7340;
+    --ok-bg: #e2f2e7;
+    --warn: #8f5500;
+    --warn-bg: #fbeed6;
+    --bad: #a1262c;
+    --bad-bg: #fae3e4;
+    --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --bg: #0e1412;
+      --surface: #151f1c;
+      --ink: #e3ebe8;
+      --muted: #94a49e;
+      --line: #25322e;
+      --accent: #52c2b4;
+      --accent-soft: #173430;
+      --ok: #72cf92;
+      --ok-bg: #15301f;
+      --warn: #efb45c;
+      --warn-bg: #33260f;
+      --bad: #f08c90;
+      --bad-bg: #3a191c;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #0e1412;
+    --surface: #151f1c;
+    --ink: #e3ebe8;
+    --muted: #94a49e;
+    --line: #25322e;
+    --accent: #52c2b4;
+    --accent-soft: #173430;
+    --ok: #72cf92;
+    --ok-bg: #15301f;
+    --warn: #efb45c;
+    --warn-bg: #33260f;
+    --bad: #f08c90;
+    --bad-bg: #3a191c;
+  }
+
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font: 15px/1.5 var(--sans);
+    padding-inline: 16px;
+    padding-block: 24px 48px;
+    margin: 0;
+  }
+  .sheet { max-width: 560px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr); gap: 22px; }
+
+  .head { display: grid; gap: 8px; }
+  .eyebrow {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+    font-size: 12px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--muted);
+  }
+  .chip { letter-spacing: .02em; text-transform: none; font-weight: 500; border-radius: 999px; padding: 1px 10px; background: var(--accent-soft); color: var(--accent); }
+  h1 { margin: 0; font: 600 clamp(30px, 9vw, 42px)/1.1 var(--mono); letter-spacing: -.01em; overflow-wrap: anywhere; }
+  .sub { margin: 0; font-size: 17px; text-wrap: balance; }
+  .range { margin: 0; font-size: 14px; color: var(--muted); }
+
+  section > h2 {
+    margin: 0 0 8px; font-size: 12px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted);
+  }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: grid; gap: 14px; }
+
+  /* Messwert */
+  .value { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .value input {
+    flex: 1 1 8ch; min-width: 0; width: 8ch;
+    font: 600 40px/1.15 var(--mono); font-variant-numeric: tabular-nums; color: var(--accent);
+    background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px;
+  }
+  .value input::placeholder { color: var(--muted); opacity: .5; }
+  .value .unit { font: 500 20px var(--mono); color: var(--muted); }
+  .src { margin: 0; font-size: 13px; color: var(--muted); min-height: 1.5em; }
+
+  .cam { position: relative; border-radius: 8px; overflow: hidden; background: #000; }
+  .cam video { display: block; width: 100%; height: auto; }
+  .cam .aim {
+    position: absolute; inset: 18% 25%; border: 3px solid rgba(255, 255, 255, .85); border-radius: 12px;
+    box-shadow: 0 0 0 999px rgba(0, 0, 0, .25); pointer-events: none;
+  }
+
+  .actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  button, a.btn {
+    font: 500 15px var(--sans); border-radius: 6px; padding: 10px 16px; cursor: pointer; min-height: 44px;
+    border: 1px solid var(--accent); background: var(--accent); color: var(--surface);
+    text-decoration: none; display: inline-flex; align-items: center; justify-content: center;
+  }
+  button.secondary { background: transparent; color: var(--accent); }
+  button:disabled { opacity: .45; cursor: default; }
+  button:focus-visible, input:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .msg { margin: 0; border-radius: 8px; padding: 10px 14px; font-size: 14px; }
+  .msg.info { background: var(--accent-soft); color: var(--accent); }
+  .msg.ok { background: var(--ok-bg); color: var(--ok); }
+  .msg.warn { background: var(--warn-bg); color: var(--warn); }
+  .msg.bad { background: var(--bad-bg); color: var(--bad); }
+
+  /* Protokoll */
+  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  th, td { padding: 8px 10px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--line); }
+  th { font-size: 12px; font-weight: 500; color: var(--muted); }
+  td { font: 15px var(--mono); }
+  td.how { font: 13px var(--sans); color: var(--muted); }
+  td.out { color: var(--warn); }
+  th:first-child, td:first-child { text-align: left; padding-left: 0; }
+  th:last-child, td:last-child { padding-right: 0; }
+  .empty { margin: 0; color: var(--muted); font-size: 14px; }
+
+  /* Testwerkzeuge */
+  details.card { gap: 0; }
+  details.card[open] { gap: 14px; }
+  summary { cursor: pointer; font-weight: 500; }
+  .tool { display: grid; gap: 10px; }
+  .tool h3 { margin: 0; font-size: 14px; font-weight: 600; }
+  .tool p { margin: 0; font-size: 13px; color: var(--muted); }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .field { display: grid; gap: 4px; min-width: 0; }
+  .field.wide { grid-column: 1 / -1; }
+  .field label { font-size: 13px; font-weight: 500; }
+  .field input {
+    width: 100%; font: 15px var(--mono); color: var(--ink); background: var(--bg);
+    border: 1px solid var(--line); border-radius: 6px; padding: 9px 10px;
+  }
+  .url { margin: 0; font: 12px/1.5 var(--mono); background: var(--bg); border-radius: 6px; padding: 10px 12px; word-break: break-all; }
+  hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; width: 100%; }
+
+  /* Druckblatt mit Test-QR-Codes */
+  .qrs { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; }
+  .qr { background: #fff; color: #000; border: 1px solid var(--line); border-radius: 8px; padding: 8px 8px 10px; display: grid; gap: 4px; justify-items: center; }
+  .qr svg { display: block; width: 100%; height: auto; }
+  .qr b { font: 600 18px var(--mono); }
+  .qr span { font-size: 11px; color: #555; }
+  .print-title { display: none; }
+
+  @media print {
+    @page { size: A4; margin: 15mm; }
+    body { background: #fff; padding: 0; }
+    .sheet > *:not(#toolsWrap), #toolsWrap summary, #toolsWrap hr, #toolsWrap .tool:not(#printTool), #printTool > *:not(.qrs):not(.print-title) { display: none !important; }
+    #toolsWrap { border: 0; padding: 0; }
+    .print-title { display: block; font: 600 14px var(--sans); margin: 0 0 8mm; }
+    .qrs { grid-template-columns: repeat(3, 1fr); gap: 10mm; }
+    .qr { border: 1px dashed #999; border-radius: 0; padding: 5mm; break-inside: avoid; }
+    .qr b { font-size: 16pt; }
+  }
+
+  @media (max-width: 420px) {
+    .value input { font-size: 34px; }
+  }
+</style>
+</head>
+<body>
+
+<main class="sheet">
+  <header class="head">
+    <div class="eyebrow">Messwert erfassen <span class="chip" id="noTag" hidden>Vorlage ohne Tag-Daten</span></div>
+    <h1 id="title">—</h1>
+    <p class="sub" id="sub"></p>
+    <p class="range" id="range" hidden></p>
+  </header>
+
+  <section>
+    <h2>Messwert</h2>
+    <div class="card">
+      <div class="value">
+        <input id="val" inputmode="decimal" autocomplete="off" spellcheck="false" placeholder="—" aria-label="Messwert">
+        <span class="unit" id="unit"></span>
+      </div>
+      <p class="src" id="src">Code am Messgerät scannen oder Wert eintippen.</p>
+      <div class="cam" id="cam" hidden>
+        <video id="video" playsinline muted></video>
+        <div class="aim"></div>
+      </div>
+      <div class="actions">
+        <button type="button" id="scanBtn">Wert scannen</button>
+        <button type="button" class="secondary" id="cancelBtn" hidden>Abbrechen</button>
+        <button type="button" class="secondary" id="takeBtn" disabled>Übernehmen</button>
+      </div>
+      <p class="msg" id="msg" hidden></p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Protokoll</h2>
+    <div class="card">
+      <p class="empty" id="emptyLog">Noch keine Werte übernommen.</p>
+      <table id="log" hidden>
+        <thead><tr><th>Zeit</th><th>Quelle</th><th id="logUnit">Wert</th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+      <div class="actions" id="logActions" hidden>
+        <button type="button" class="secondary" id="shareBtn">Teilen</button>
+        <button type="button" class="secondary" id="clearBtn">Leeren</button>
+      </div>
+      <p class="src">Das Protokoll bleibt nur in diesem Browser gespeichert, getrennt je Messstelle.</p>
+    </div>
+  </section>
+
+  <details class="card" id="toolsWrap">
+    <summary>Testwerkzeuge</summary>
+
+    <div class="tool">
+      <h3>Adresse für den NFC-Tag</h3>
+      <p>Diese Adresse auf den Tag schreiben, z. B. mit NFC Tools. Die Angaben stehen hinter dem <code>#</code> und bleiben im Browser.</p>
+      <div class="grid2">
+        <div class="field"><label for="tId">Messstelle</label><input id="tId" value="T-01" autocomplete="off" spellcheck="false"></div>
+        <div class="field"><label for="tUnit">Einheit</label><input id="tUnit" value="mA" autocomplete="off" spellcheck="false"></div>
+        <div class="field wide"><label for="tName">Bezeichnung</label><input id="tName" value="Eingang 4–20 mA" autocomplete="off"></div>
+        <div class="field"><label for="tMin">Plausibel ab</label><input id="tMin" value="0" inputmode="decimal" autocomplete="off"></div>
+        <div class="field"><label for="tMax">bis</label><input id="tMax" value="20" inputmode="decimal" autocomplete="off"></div>
+      </div>
+      <p class="url" id="tagUrl"></p>
+      <p id="tagLen"></p>
+      <div class="actions">
+        <button type="button" class="secondary" id="copyUrlBtn">Adresse kopieren</button>
+        <button type="button" class="secondary" id="openUrlBtn">So öffnen</button>
+      </div>
+    </div>
+
+    <hr>
+
+    <div class="tool" id="printTool">
+      <h3>Test-QR-Codes zum Ausdrucken</h3>
+      <p>Zahlen durch Leerzeichen trennen. Jeder Code enthält nur die Zahl; Scannen im Schritt „Wert scannen“ trägt sie ein.</p>
+      <div class="field"><label for="qrNums">Zahlen</label><input id="qrNums" value="-0.02 4.00 12.37 19.98 21.5 7" autocomplete="off" spellcheck="false"></div>
+      <div class="actions">
+        <button type="button" class="secondary" id="randBtn">Zufallszahlen</button>
+        <button type="button" id="printBtn">Drucken</button>
+      </div>
+      <p class="print-title" id="printTitle">Test-QR-Codes · Messwert erfassen</p>
+      <div class="qrs" id="qrs"></div>
+    </div>
+  </details>
+</main>
+
+<script type="module">
+import { jsQR, qrcode } from "./qr.js";
+
+const $ = id => document.getElementById(id);
+const tf = new Intl.DateTimeFormat("de-DE", { dateStyle: "short", timeStyle: "medium" });
+const NUMBER = /^[+\-−]?\d+(?:[.,]\d+)?$/;
+// Einheitlich mit Punkt speichern, deutsch mit Komma anzeigen
+const norm = s => s.trim().replace(",", ".").replace("−", "-").replace(/^\+/, "");
+const de = v => v.replace(".", ",").replace(/^-/, "−");
+
+// ---- Angaben vom Tag (Teil hinter #) ----
+const tag = Object.fromEntries(new URLSearchParams(location.hash.slice(1)));
+const hasTag = Object.keys(tag).length > 0;
+const unit = tag.u || "";
+const min = tag.min !== undefined && tag.min !== "" ? Number(norm(tag.min)) : null;
+const max = tag.max !== undefined && tag.max !== "" ? Number(norm(tag.max)) : null;
+
+$("noTag").hidden = hasTag;
+$("title").textContent = tag.id || "—";
+$("sub").textContent = tag.t || (hasTag ? "" : "Über den NFC-Tag der Messstelle öffnen. Ohne Tag-Daten funktioniert die Seite als leere Vorlage.");
+$("unit").textContent = unit;
+$("logUnit").textContent = unit ? `Wert (${unit})` : "Wert";
+if (min !== null || max !== null) {
+  $("range").hidden = false;
+  $("range").textContent = `Plausibel: ${min !== null ? de(String(min)) : "…"} bis ${max !== null ? de(String(max)) : "…"} ${unit}`.trim();
+}
+document.title = tag.id ? `${tag.id} · Messwert erfassen` : "Messwert erfassen";
+
+function show(kind, text) { const m = $("msg"); m.className = "msg " + kind; m.textContent = text; m.hidden = !text; }
+
+const outOfRange = v => (min !== null && v < min) || (max !== null && v > max);
+
+// ---- Eingabefeld ----
+let source = null;   // "Scan" oder "Hand"
+function setValue(v, from) {
+  $("val").value = de(v);
+  source = from;
+  check();
+}
+function check() {
+  const raw = $("val").value;
+  const ok = NUMBER.test(raw.trim());
+  $("takeBtn").disabled = !ok;
+  if (!raw.trim()) { show("", ""); return; }
+  if (!ok) { show("bad", "Keine gültige Zahl."); return; }
+  const v = Number(norm(raw));
+  if (outOfRange(v)) show("warn", `Außerhalb des plausiblen Bereichs. Trotzdem übernehmen?`);
+  else if (source === "Scan") show("ok", "Gescannt. Prüfen und übernehmen.");
+  else show("", "");
+}
+$("val").addEventListener("input", () => { source = "Hand"; $("src").textContent = "Von Hand eingegeben."; check(); });
+$("val").addEventListener("keydown", e => { if (e.key === "Enter" && !$("takeBtn").disabled) take(); });
+
+// ---- Protokoll (je Messstelle im Browser) ----
+const KEY = "messwert:" + (tag.id || "ohne-tag");
+let log = [];
+try { log = JSON.parse(localStorage.getItem(KEY)) || []; } catch (e) { log = []; }
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(log)); } catch (e) { /* privates Fenster o. Ä. */ } };
+
+function renderLog() {
+  $("emptyLog").hidden = log.length > 0;
+  $("log").hidden = $("logActions").hidden = log.length === 0;
+  $("rows").replaceChildren(...log.map(r => {
+    const tr = document.createElement("tr");
+    const t = document.createElement("td"); t.textContent = tf.format(new Date(r.t));
+    const h = document.createElement("td"); h.className = "how"; h.textContent = r.how;
+    const v = document.createElement("td"); v.textContent = de(r.v);
+    if (outOfRange(Number(r.v))) { v.className = "out"; v.title = "außerhalb des plausiblen Bereichs"; }
+    tr.append(t, h, v);
+    return tr;
+  }));
+}
+
+function take() {
+  const v = norm($("val").value);
+  log.unshift({ t: Date.now(), v, how: source || "Hand" });
+  save();
+  renderLog();
+  $("val").value = "";
+  source = null;
+  $("takeBtn").disabled = true;
+  $("src").textContent = "Übernommen. Nächsten Wert scannen oder eintippen.";
+  show("", "");
+}
+$("takeBtn").addEventListener("click", take);
+
+$("clearBtn").addEventListener("click", () => {
+  if (!confirm("Protokoll dieser Messstelle löschen?")) return;
+  log = []; save(); renderLog();
+});
+$("shareBtn").addEventListener("click", async () => {
+  const head = [tag.id, tag.t].filter(Boolean).join(" · ") || "Messwerte";
+  const text = [head, ...log.map(r => `${tf.format(new Date(r.t))}\t${de(r.v)}${unit ? " " + unit : ""}\t${r.how}`)].join("\n");
+  try {
+    if (navigator.share) await navigator.share({ title: head, text });
+    else { await navigator.clipboard.writeText(text); show("ok", "Protokoll in die Zwischenablage kopiert."); }
+  } catch (e) {
+    if (e?.name !== "AbortError") show("bad", "Teilen nicht möglich.");
+  }
+});
+renderLog();
+
+// ---- QR-Scanner ----
+let stream = null, timer = null, detector = null;
+const canvas = document.createElement("canvas");
+const ctx = canvas.getContext("2d", { willReadFrequently: true });
+
+async function startScan() {
+  show("", "");
+  if (!navigator.mediaDevices?.getUserMedia || !window.isSecureContext) {
+    show("bad", "Dieser Browser gibt keinen Kamerazugriff (Seite muss über https geöffnet sein). Wert bitte eintippen.");
+    return;
+  }
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } } });
+  } catch (e) {
+    show("bad", e?.name === "NotAllowedError" ? "Kamerazugriff verweigert. In den Website-Einstellungen erlauben oder Wert eintippen." : `Kamera nicht verfügbar: ${e?.message || e}`);
+    return;
+  }
+  // Eingebauter Erkenner (Chrome auf Android) ist schneller; sonst jsQR
+  if (!detector && "BarcodeDetector" in window) {
+    try { if ((await BarcodeDetector.getSupportedFormats()).includes("qr_code")) detector = new BarcodeDetector({ formats: ["qr_code"] }); } catch (e) { detector = null; }
+  }
+  const v = $("video");
+  v.srcObject = stream;
+  await v.play().catch(() => {});
+  $("cam").hidden = false;
+  $("scanBtn").hidden = true;
+  $("cancelBtn").hidden = false;
+  $("src").textContent = "QR-Code in den Rahmen halten …";
+  tick();
+}
+
+function stopScan() {
+  clearTimeout(timer);
+  stream?.getTracks().forEach(t => t.stop());
+  stream = null;
+  $("video").srcObject = null;
+  $("cam").hidden = true;
+  $("scanBtn").hidden = false;
+  $("cancelBtn").hidden = true;
+}
+
+async function readFrame(v) {
+  if (detector) {
+    const codes = await detector.detect(v);
+    return codes[0]?.rawValue ?? null;
+  }
+  const s = Math.min(1, 800 / Math.max(v.videoWidth, v.videoHeight));
+  const w = Math.round(v.videoWidth * s), h = Math.round(v.videoHeight * s);
+  if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+  ctx.drawImage(v, 0, 0, w, h);
+  return jsQR(ctx.getImageData(0, 0, w, h).data, w, h, { inversionAttempts: "attemptBoth" })?.data ?? null;
+}
+
+let lastWrong = "";
+async function tick() {
+  if (!stream) return;
+  const v = $("video");
+  let text = null;
+  if (v.videoWidth) { try { text = await readFrame(v); } catch (e) { text = null; } }
+  if (!stream) return;
+  if (text !== null) {
+    if (NUMBER.test(text.trim())) {
+      stopScan();
+      navigator.vibrate?.(60);
+      setValue(norm(text), "Scan");
+      $("src").textContent = `Gescannt um ${new Intl.DateTimeFormat("de-DE", { timeStyle: "medium" }).format(new Date())}.`;
+      $("takeBtn").focus();
+      return;
+    }
+    if (text !== lastWrong) {
+      lastWrong = text;
+      show("warn", `Dieser Code enthält keine Zahl: „${text.length > 60 ? text.slice(0, 60) + "…" : text}“`);
+    }
+  }
+  timer = setTimeout(tick, 120);
+}
+
+$("scanBtn").addEventListener("click", startScan);
+$("cancelBtn").addEventListener("click", () => { stopScan(); $("src").textContent = "Scannen abgebrochen."; });
+document.addEventListener("visibilitychange", () => { if (document.hidden && stream) stopScan(); });
+
+// ---- Testwerkzeuge: Tag-Adresse ----
+function tagUrl() {
+  const p = new URLSearchParams();
+  for (const [k, id] of [["id", "tId"], ["t", "tName"], ["u", "tUnit"], ["min", "tMin"], ["max", "tMax"]]) {
+    const v = $(id).value.trim();
+    if (v) p.set(k, v);
+  }
+  return new URL("messwert.html", location.href).href.split("#")[0] + "#" + p.toString();
+}
+function updateTagUrl() {
+  const url = tagUrl();
+  $("tagUrl").textContent = url;
+  const bytes = new TextEncoder().encode(url.replace(/^https:\/\//, "")).length + 8;
+  $("tagLen").textContent = `≈ ${bytes} Byte auf dem Tag · ${bytes <= 144 ? "passt auf NTAG213" : bytes <= 496 ? "braucht NTAG215" : "zu lang"}`;
+}
+for (const id of ["tId", "tName", "tUnit", "tMin", "tMax"]) $(id).addEventListener("input", updateTagUrl);
+$("copyUrlBtn").addEventListener("click", async () => {
+  try { await navigator.clipboard.writeText(tagUrl()); $("copyUrlBtn").textContent = "Kopiert"; }
+  catch (e) { $("copyUrlBtn").textContent = "Kopieren nicht möglich"; }
+  setTimeout(() => { $("copyUrlBtn").textContent = "Adresse kopieren"; }, 1500);
+});
+$("openUrlBtn").addEventListener("click", () => { location.href = tagUrl(); });
+// Andere Tag-Adresse im selben Tab: neu aufbauen
+window.addEventListener("hashchange", () => location.reload());
+// Werte vom aktuellen Tag in die Felder übernehmen
+if (hasTag) { $("tId").value = tag.id || ""; $("tName").value = tag.t || ""; $("tUnit").value = tag.u || ""; $("tMin").value = tag.min || ""; $("tMax").value = tag.max || ""; }
+updateTagUrl();
+
+// ---- Testwerkzeuge: QR-Codes zum Ausdrucken ----
+function renderQrs() {
+  const nums = $("qrNums").value.split(/\s+/).filter(Boolean);
+  $("qrs").replaceChildren(...nums.map(n => {
+    const box = document.createElement("div");
+    box.className = "qr";
+    if (!NUMBER.test(n)) {
+      box.innerHTML = "<span>keine Zahl</span>";
+      box.append(Object.assign(document.createElement("b"), { textContent: n }));
+      return box;
+    }
+    const q = qrcode(0, "M");
+    q.addData(norm(n));
+    q.make();
+    box.innerHTML = q.createSvgTag({ cellSize: 4, margin: 4, scalable: true });
+    box.querySelector("svg").setAttribute("aria-label", "QR-Code " + n);
+    box.append(Object.assign(document.createElement("b"), { textContent: de(norm(n)) }));
+    if (unit) box.append(Object.assign(document.createElement("span"), { textContent: unit }));
+    return box;
+  }));
+}
+$("qrNums").addEventListener("input", renderQrs);
+$("randBtn").addEventListener("click", () => {
+  const lo = min ?? 0, hi = max ?? 20;
+  $("qrNums").value = Array.from({ length: 6 }, () => (lo + Math.random() * (hi - lo)).toFixed(2)).join(" ");
+  renderQrs();
+});
+$("printBtn").addEventListener("click", () => { $("toolsWrap").open = true; window.print(); });
+renderQrs();
+
+if ("serviceWorker" in navigator && window.isSecureContext) navigator.serviceWorker.register("sw.js").catch(() => {});
+</script>
+</body>
+</html>
