@@ -130,6 +130,11 @@
   td { font: 15px var(--mono); }
   td.how { font: 13px var(--sans); color: var(--muted); }
   td.out { color: var(--warn); }
+  td.act { width: 1%; padding-left: 12px; }
+  .scroll { overflow-x: auto; }
+  button.del { min-height: 34px; padding: 4px 10px; font-size: 13px; background: transparent; color: var(--bad); border-color: var(--line); }
+  .undo { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 0; font-size: 14px; color: var(--muted); }
+  .undo button { min-height: 34px; padding: 4px 12px; font-size: 13px; }
   th:first-child, td:first-child { text-align: left; padding-left: 0; }
   th:last-child, td:last-child { padding-right: 0; }
   .empty { margin: 0; color: var(--muted); font-size: 14px; }
@@ -171,6 +176,12 @@
     .qr b { font-size: 16pt; }
   }
 
+  @media (max-width: 480px) {
+    th, td { padding-inline: 5px; }
+    td { font-size: 14px; }
+    td.act { padding-left: 8px; }
+    button.del { padding-inline: 8px; }
+  }
   @media (max-width: 420px) {
     .value input { font-size: 34px; }
   }
@@ -211,10 +222,11 @@
     <h2>Protokoll</h2>
     <div class="card">
       <p class="empty" id="emptyLog">Noch keine Werte übernommen.</p>
-      <table id="log" hidden>
-        <thead><tr><th>Zeit</th><th>Quelle</th><th id="logUnit">Wert</th></tr></thead>
+      <div class="scroll"><table id="log" hidden>
+        <thead><tr><th>Zeit</th><th>Quelle</th><th id="logUnit">Wert</th><th><span class="sr" hidden>Aktion</span></th></tr></thead>
         <tbody id="rows"></tbody>
-      </table>
+      </table></div>
+      <p class="undo" id="undo" hidden><span id="undoText"></span><button type="button" class="secondary" id="undoBtn">Wiederherstellen</button></p>
       <div class="actions" id="logActions" hidden>
         <button type="button" class="secondary" id="shareBtn">Teilen</button>
         <button type="button" class="secondary" id="clearBtn">Leeren</button>
@@ -265,6 +277,8 @@ import { jsQR, qrcode } from "./qr.js";
 
 const $ = id => document.getElementById(id);
 const tf = new Intl.DateTimeFormat("de-DE", { dateStyle: "short", timeStyle: "medium" });
+// kurz für die Tabelle, damit sie auf das Handy passt
+const tfShort = new Intl.DateTimeFormat("de-DE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 const NUMBER = /^[+\-−]?\d+(?:[.,]\d+)?$/;
 // Einheitlich mit Punkt speichern, deutsch mit Komma anzeigen
 const norm = s => s.trim().replace(",", ".").replace("−", "-").replace(/^\+/, "");
@@ -322,19 +336,50 @@ const save = () => { try { localStorage.setItem(KEY, JSON.stringify(log)); } cat
 function renderLog() {
   $("emptyLog").hidden = log.length > 0;
   $("log").hidden = $("logActions").hidden = log.length === 0;
-  $("rows").replaceChildren(...log.map(r => {
+  $("rows").replaceChildren(...log.map((r, i) => {
     const tr = document.createElement("tr");
-    const t = document.createElement("td"); t.textContent = tf.format(new Date(r.t));
+    const t = document.createElement("td"); t.textContent = tfShort.format(new Date(r.t)); t.title = tf.format(new Date(r.t));
     const h = document.createElement("td"); h.className = "how"; h.textContent = r.how;
     const v = document.createElement("td"); v.textContent = de(r.v);
     if (outOfRange(Number(r.v))) { v.className = "out"; v.title = "außerhalb des plausiblen Bereichs"; }
-    tr.append(t, h, v);
+    const a = document.createElement("td"); a.className = "act";
+    // Nur der zuletzt gespeicherte Eintrag lässt sich einzeln löschen
+    if (i === 0) {
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "del"; b.textContent = "Löschen";
+      b.setAttribute("aria-label", `Letzten Eintrag ${de(r.v)} löschen`);
+      b.addEventListener("click", deleteLast);
+      a.append(b);
+    }
+    tr.append(t, h, v, a);
     return tr;
   }));
 }
 
+// Gelöschter Eintrag bleibt bis zur nächsten Änderung wiederherstellbar
+let removed = null;
+function setUndo(entry) {
+  removed = entry;
+  $("undo").hidden = !entry;
+  if (entry) $("undoText").textContent = `Eintrag ${de(entry.v)}${unit ? " " + unit : ""} von ${tf.format(new Date(entry.t))} gelöscht.`;
+}
+function deleteLast() {
+  if (!log.length) return;
+  setUndo(log.shift());
+  save();
+  renderLog();
+}
+$("undoBtn").addEventListener("click", () => {
+  if (!removed) return;
+  log.unshift(removed);
+  save();
+  setUndo(null);
+  renderLog();
+});
+
 function take() {
   const v = norm($("val").value);
+  setUndo(null);
   log.unshift({ t: Date.now(), v, how: source || "Hand" });
   save();
   renderLog();
@@ -348,7 +393,7 @@ $("takeBtn").addEventListener("click", take);
 
 $("clearBtn").addEventListener("click", () => {
   if (!confirm("Protokoll dieser Messstelle löschen?")) return;
-  log = []; save(); renderLog();
+  log = []; save(); setUndo(null); renderLog();
 });
 $("shareBtn").addEventListener("click", async () => {
   const head = [tag.id, tag.t].filter(Boolean).join(" · ") || "Messwerte";
